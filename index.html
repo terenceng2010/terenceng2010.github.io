@@ -1,0 +1,78 @@
+<html>
+<head>
+    
+</head>
+<script>
+document.addEventListener("DOMContentLoaded", function(event) {
+      setTimeout(function(){
+                document.body.className = 'active';
+      },1000);
+});    
+</script>
+<style>
+    body{
+        transition: background-color 1s 1s;
+        font-family: Courier New, Courier, monospace;
+        color:gray;
+        background-color: white;
+    }
+    body.active{
+         background-color: black;
+    }
+    section{
+        padding:10px;
+        margin:10px;
+    }
+    section:nth-child(odd){
+        border-width:0 0 0 5px;
+        border-color: blue;
+        border-style:solid;
+    }
+    section:nth-child(even){
+        border-width:0 0 0 5px;
+        border-color:blueviolet;
+        border-style:solid;
+    }
+    .pet-projects{
+        display:-webkit-flex;
+        display: flex;
+    }
+    .pet-projects > .project{
+        padding:10px;
+        margin:10px;       
+    }
+    .timeline ul li label{
+        font-weight: bold;
+    }
+</style>
+<title>Terence</title>
+<aside class='myself'>I am Terence. I am a software developer.</aside>
+<section class='timeline-title'>
+<h3>Timeline</h3>
+</section>
+<section class='timeline'>
+    <ul>
+        <li><label for="">2016</label><br/>Working in Little Genius for a cross-platform IM.</li>
+        <li><label for="">2013-2015</label><br/>Working in ASM as a programmer. SAP, .NET, production planning and so on...</li>
+        <li>
+            <label for="">2010-2013</label><br/>Studying Information Systems as a bachelor in HKBU. My Graduated Project is a Location-based
+            IM.
+        </li>
+        <li><label for="">1998</label><br/>The year I first contacted with a computer. Now I wish I haven't.</li>
+        <li><label for="">1991</label><br/>The year I was bornt</li>
+    </ul>
+</section>
+<section class='pet-projects-title'><h3>Pet Projects</h3> <br/>Over the years I discover that the best way to learn new stuff is to get my hands dirty.</section>
+<section class='pet-projects'>
+    <div class='project'><h3>SnapBook</h3><p>Help you post and delete a FB post after certain period</p></div>
+    <div class='project'><h3>Is the sportground open?</h3><p>Extract LCSD PDF to see whether you can go to jog today</p></div>
+   <!-- <div class='project'><h3><h3><p></p></div>-->
+</section>
+<section class='contact-and-blog-title'>
+    <h3>Contact</h3>
+</section>
+<section class='contact-and-blog'>
+    Email: terenceng2010@gmail.com
+    GitHub: <a href='https://github.com/terenceng2010'>terenceng2010</a>
+</section>
+</html>
