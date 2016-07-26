@@ -48,13 +48,21 @@ document.addEventListener("DOMContentLoaded", function(event) {
 <title>Terence</title>
 <style>
     @keyframes animateRoad{
-	   from { background-position: 3000% 100%, 0 0, 0 0; }
-	   to { background-position: 0 100%, 10000% 0, 5000% 0; }
+	   from { background-position: 3000% 100%, 10000% 0, 0 0; }
+	   to { background-position: 0 100%,  0 0, 5000% 0; }
     }
     .banner{
       animation: animateRoad 999s linear infinite;     
     }
-    
+
+.initial.car-wrapper {
+    transform: translateX(-10%);
+}
+.car-wrapper {
+    transform: translateX(0%);
+    transition: transform 1s;
+}
+
 body:hover .car {
     transform: translateY(-150px) rotate(-45deg);
     transition: transform 3s ease-out;
