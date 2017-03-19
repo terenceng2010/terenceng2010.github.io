@@ -4,8 +4,11 @@
 <p>Try to assign another value to app.message</p>
 <div id="app">
   {{ message }}
-  <input id='new-message-value' value=''>
-  <button type='button' v-model="newMessage" v-on:click="updateMessage">Update</button>
+
+  <form v-on:submit.prevent="onSubmit">
+  <input v-on:keyup.enter="updateMessage" v-model="newMessage"  id='new-message-value' value=''>
+  <button type='button'  v-on:click="updateMessage">Update</button>
+  </form>
 </div>
 <script>
 var app = new Vue({
