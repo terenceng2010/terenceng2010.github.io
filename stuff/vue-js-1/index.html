@@ -4,12 +4,20 @@
 <p>Try to assign another value to app.message</p>
 <div id="app">
   {{ message }}
+  <input id='new-message-value' value=''>
+  <button type='button' v-model="newMessage" v-on:click="updateMessage">Update</button>
 </div>
 <script>
 var app = new Vue({
   el: '#app',
   data: {
-    message: 'Hello Vue!'
+    message: 'Hello Vue!',
+    newMessage:''
+  },
+  methods:{
+      updateMessage:function(){
+        this.message = this.newMessage;
+      }
   }
 })
 </script>
