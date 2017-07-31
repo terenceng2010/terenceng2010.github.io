@@ -1,0 +1,65 @@
+
+    body{
+        transition: background-color 1s 1s;
+        font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+        color:gray;
+        background-color: white;
+    }
+    body.night{
+         background-color: black;
+    }
+    section{
+        padding:10px;
+        margin:10px;
+    }
+    section:nth-child(odd){
+        border-width:0 0 0 5px;
+        border-color: blue;
+        border-style:solid;
+    }
+    section:nth-child(even){
+        border-width:0 0 0 5px;
+        border-color:blueviolet;
+        border-style:solid;
+    }
+    .pet-projects{
+        display:-webkit-flex;
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .pet-projects > .project{
+        padding:10px;
+        margin:10px;       
+    }
+    .timeline ul li label{
+        font-weight: bold;
+    }
+
+        @keyframes animateRoad{
+	   from { background-position: 3000% 100%, 10000% 0, 0 0; }
+	   to { background-position: 0 100%,  0 0, 5000% 0; }
+    }
+    .banner{
+      animation: animateRoad 999s linear infinite;     
+    }
+
+
+.banner .car {
+    transform: translateY(0px);
+    transition: transform 1s cubic-bezier(.18,.89,.32,1.28);
+}
+
+.banner.onClick .car {
+    transform: translateY(-150px);
+    transition: transform 1s ease-out;
+}
+
+/*
+.banner:onClick .car-wrapper {
+    transform: translateX(100vw);
+    transition: transform 3s ease-out;
+}*/
+
+
+
+

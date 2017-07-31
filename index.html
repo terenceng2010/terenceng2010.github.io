@@ -1,74 +1,31 @@
 <html>
 <head>
-    
+    <title>Terence</title>
 </head>
 <script>
 document.addEventListener("DOMContentLoaded", function(event) {
-      setTimeout(function(){
-                document.body.className = 'active';
-      },1000);
+      
+      var d = new Date();
+      var h = d.getHours();
+      console.log(h);
+      if( h > 6 && h < 17){
+            
+      }else{
+        document.body.className = 'night';
+      }
+
+      document.querySelector('.banner').addEventListener("click",function(){
+        document.querySelector('.banner').className += " onClick";
+        window.setTimeout(function(){
+            document.querySelector('.banner').className = "banner";
+        },1000);
+      });
 });    
+
+
 </script>
-<style>
-    body{
-        transition: background-color 1s 1s;
-        font-family: Courier New, Courier, monospace;
-        color:gray;
-        background-color: white;
-    }
-    body.active{
-         background-color: black;
-    }
-    section{
-        padding:10px;
-        margin:10px;
-    }
-    section:nth-child(odd){
-        border-width:0 0 0 5px;
-        border-color: blue;
-        border-style:solid;
-    }
-    section:nth-child(even){
-        border-width:0 0 0 5px;
-        border-color:blueviolet;
-        border-style:solid;
-    }
-    .pet-projects{
-        display:-webkit-flex;
-        display: flex;
-    }
-    .pet-projects > .project{
-        padding:10px;
-        margin:10px;       
-    }
-    .timeline ul li label{
-        font-weight: bold;
-    }
-</style>
-<title>Terence</title>
-<style>
-    @keyframes animateRoad{
-	   from { background-position: 3000% 100%, 10000% 0, 0 0; }
-	   to { background-position: 0 100%,  0 0, 5000% 0; }
-    }
-    .banner{
-      animation: animateRoad 999s linear infinite;     
-    }
+<link rel="stylesheet" type="text/css" href="css/index.css?v=0.1">
 
-
-
-.banner:hover .car {
-    transform: translateY(-150px) rotate(-45deg) scale(1.5);
-    transition: transform 3s ease-out;
-    transition-delay: 0.5s;
-}
-
-.banner:hover .car-wrapper {
-    transform: translateX(100vw);
-    transition: transform 3s ease-out;
-}
-
-</style>
 <div style="width: 100%; height: 150px; background: url(&quot;1469524083.png.png&quot;) repeat-x scroll 0% 100%, url(&quot;1469523736.png.png&quot;) repeat-x scroll 0% 95%, transparent url(&quot;1469522680.png.png&quot;) repeat-x scroll 0% 0%;" class="banner">
 
 <div class='car-wrapper'><div style="height: 30px; position: absolute; top: 110px; left: 5%; width: 50px; background: transparent url(&quot;1469527984.png.png&quot;) no-repeat scroll -53px 0px;" class="car">
@@ -77,26 +34,26 @@ document.addEventListener("DOMContentLoaded", function(event) {
 </div>
 
 
-<aside class='myself'>I am Terence. I am a software developer.</aside>
+<aside class='myself'>Terence. A software developer.</aside>
 <section class='timeline-title'>
 <h3>Timeline</h3>
 </section>
 <section class='timeline'>
     <ul>
-        <li><label for="">2016</label><br/>Working in Little Genius for a cross-platform IM.</li>
-        <li><label for="">2013-2015</label><br/>Working in ASM as a programmer. SAP, .NET, production planning and so on...</li>
+        <li><label for="">2016-</label><br/>ESRI CHINA HK</li>
+        <li><label for="">2016-2016</label><br/>Little Genius - cross-platform IM.</li>
+        <li><label for="">2013-2015</label><br/>ASM as a programmer. SAP, .NET, production planning and so on...</li>
         <li>
-            <label for="">2010-2013</label><br/>Studying Information Systems as a bachelor in HKBU. My Graduated Project is a Location-based
-            IM.
+            <label for="">2010-2013</label><br/>Studying Information Systems as a bachelor in HKBU.
         </li>
     </ul>
 </section>
-<section class='pet-projects-title'><h3>Pet Projects</h3> <br/>Over the years I discover that the best way to learn new stuff is to get my hands dirty.</section>
+<section class='pet-projects-title'><h3>Pet Projects</h3></section>
 <section class='pet-projects'>
-    <div class='project'><h3>TLDR - Electron Client<h3><p>Quick reference of Linux commands <a href='https://github.com/terenceng2010/tldr-electron'>Download it and Play</a></p></div>
-    <div class='project'><h3>Votetage<h3><p>Real-time Voting app. Made With React Native. Available <a href='https://play.google.com/store/apps/details?id=com.terenceng2010.votetage&hl=zh-TW'>here</a></p></div>
-    <div class='project'><h3>SnapBook</h3><p>Help you post and delete a FB post after certain period</p></div>
-    <div class='project'><h3>Is the sportground open?</h3><p>Extract LCSD PDF to see whether you can go to jog today</p></div>
+    <div class='project'><h3>TLDR - Electron Client<h3><p>Quick reference of Linux commands <a href='https://github.com/terenceng2010/tldr-electron'>Try It</a></p></div>
+    <!--<div class='project'><h3>Votetage<h3><p>Real-time Voting app. Made With React Native. Available <a href='https://play.google.com/store/apps/details?id=com.terenceng2010.votetage&hl=zh-TW'>here</a></p></div>
+    <div class='project'><h3>SnapBook</h3><p>Help you post and delete a FB post after certain period</p></div>-->
+    <!--<div class='project'><h3>Is the sportground open?</h3><p>Extract LCSD PDF to see whether you can go to jog today</p></div>-->
     <div class='project'><h3>Code Playground<h3><p>Where I test various <a href='./stuff/stuff-index.html'> stuff</a></p></div>
    <!-- <div class='project'><h3><h3><p></p></div>-->
 </section>
