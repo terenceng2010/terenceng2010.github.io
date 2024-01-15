@@ -40,8 +40,9 @@
 
         <section class="draw-host">
             <h3 class="is-size-4">Draw Someone</h3>
-            <p><label class="checkbox"><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">
+            <p><label class="checkbox"><input type="checkbox" v-model="isNoRepeat">
                 No-repeat?</input></label></p>
+            <br>
             <button :disabled="peopleList.length === 0"  class="button is-primary" type="button" @click="drawPerson">Draw</button>
             <button :disabled="peopleDrawn.length === 0"  class="button is-warning" type="button" @click="cleanUp">Clear</button>
             <p>Result: {{peopleDrawnText}}</p>
@@ -74,6 +75,7 @@
       peopleList: [],
       clonedPeopleList: [],
       isNoRepeat: true,
+      lastDrawnMode: '', // 'no-repeat' or 'repeat'
       peopleDrawn: [],
       get peopleDrawnText(){
         return this.peopleDrawn.join(', ')  
@@ -92,7 +94,7 @@
             this.peopleList.push(this.inputPersonName);
             this.inputPersonName = '';
             this.clonedPeopleList = [...this.peopleList];
-            this.clearDrawPerson();
+            this.cleanUp();
         }
       },
       removePerson(person){
@@ -105,18 +107,29 @@
         }else{
             if(this.isNoRepeat){
                 if(this.clonedPeopleList.length == 0){
-                    this.clonedPeopleList = [...this.peopleList];
-                    this.peopleDrawn = [];
+                    this.cleanUp();
                 }
+                if(this.lastDrawnMode != 'no-repeat'){
+                    this.cleanUp();
+                }
+
                 let personIndex = getRandomIntInclusive(0,this.clonedPeopleList.length-1)
                 this.peopleDrawn.push(this.clonedPeopleList[personIndex]);
                 this.clonedPeopleList = this.clonedPeopleList.toSpliced(personIndex,1);
                 if(this.clonedPeopleList.length == 0){
                     window.alert('All people have been drawn!');
-                }                
+                }       
+
+                this.lastDrawnMode = 'no-repeat'; 
             }else{
+                if(this.lastDrawnMode != 'repeat'){
+                    this.cleanUp();
+                } 
+
                 let personIndex = getRandomIntInclusive(0,this.peopleList.length-1)
                 this.peopleDrawn.push( this.peopleList[personIndex] );
+                
+                this.lastDrawnMode = 'repeat'; 
             }
         }
      },
