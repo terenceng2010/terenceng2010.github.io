@@ -2,30 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Who'll be the next...?</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">    
 </head>
 <body v-scope>
-    <h1>Who'll be the next...?</h1>
-    <section class="add-people">
-        <h3>Add People</h3>
-        <p>Please input some people to begin:</p>
-        <input v-model="inputPersonName" type="text" @keydown.enter="addPerson" placeholder="Add a person" /> 
-        <button type="button" @click="addPerson">Add</button>
-    </section>
-    <section class="manage-people-list">
-        <h3>Manage People List</h3>
-        Number of People: {{numberOfPeople}}
-        <ul v-for="person in peopleList">
-            <li>{{person}} <button type="button" title="Remove" @click="peopleList = peopleList.filter(p => p !== person)">x</button></li>
-        </ul>
-    </section>
-    <section class="draw-host">
-        <h3>Draw Someone</h3>
-        <p><label><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">No-repeat?</input></label></p>
-        <button type="button" @click="drawPerson">Draw</button> <button type="button" @click="clearDrawPerson">Clear</button>
-        <p> Host: {{peopleDrawnText}}</p>
-    </section> 
+    <div class="container">
+        <h1 class="is-size-3">Who'll be the next...?</h1>
+        <div class="columns is-mobile">
+            <div class="column is-half">
+                <section class="add-people section">
+                    <div class="columns">
+                        <div class="column">
+                            <div class="field has-addons">
+                                <div class="control">
+                                    <input class="input" v-model="inputPersonName" type="text" @keydown.enter="addPerson" placeholder="Add a person" /> 
+                                </div>
+                                <div class="control">
+                                    <button class="button is-primary" type="button" @click="addPerson">Add</button>
+                                </div>
+                              </div> 
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div class="column">
+                <section class="manage-people-list section">
+                    <h3 class="is-size-5">List of People ({{numberOfPeople}})</h3>
+                    <ul v-for="person in peopleList">
+                        <li>{{person}} <button  class="delete" type="button" title="Remove" @click="removePerson(person)"></button></li>
+                    </ul>
+                </section>                
+            </div>            
+        </div>     
+
+
+        <section class="draw-host section">
+            <h3 class="is-size-4">Draw Someone</h3>
+            <p><label class="checkbox"><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">
+                No-repeat?</input></label></p>
+            <button :disabled="peopleList.length === 0"  class="button is-primary" type="button" @click="drawPerson">Draw</button>
+            <button :disabled="peopleDrawn.length === 0"  class="button is-warning" type="button" @click="clearDrawPerson">Clear</button>
+            <p>Result: {{peopleDrawnText}}</p>
+        </section> 
+    </div>
 </body>
 <script>
     // Generates a random integer between the specified minimum and maximum values (inclusive).
@@ -73,6 +94,10 @@
             this.clonedPeopleList = [...this.peopleList];
             this.clearDrawPerson();
         }
+      },
+      removePerson(person){
+        this.peopleList = this.peopleList.filter(p => p !== person)
+        this.cleanUp();
       },
       drawPerson(){
         if(this.peopleList.length == 0){
