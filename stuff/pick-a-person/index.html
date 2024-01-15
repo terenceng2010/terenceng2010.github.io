@@ -17,7 +17,7 @@
                         <div class="column">
                             <div class="field has-addons">
                                 <div class="control">
-                                    <input class="input" v-model="inputPersonName" type="text" @keydown.enter="addPerson" placeholder="Add a person" /> 
+                                    <input id="person-name-input" class="input" v-model="inputPersonName" type="text" @keydown.enter="addPerson" placeholder="Add a person" /> 
                                 </div>
                                 <div class="control">
                                     <button class="button is-primary" type="button" @click="addPerson">Add</button>
@@ -66,6 +66,10 @@
         max = Math.floor(max);
         return Math.floor(randomNumber * (max - min + 1)) + min;
     }
+
+    function focusPersonInput(){
+        document.getElementById('person-name-input').focus();
+    }    
 </script>
 <script type="module">
     import { createApp } from 'https://unpkg.com/petite-vue?module'
@@ -84,6 +88,7 @@
         return this.peopleList.length
       },
       // methods
+
       addPerson() {
         if(this.inputPersonName === ''){
             window.alert('Please provide a name!');
@@ -96,6 +101,7 @@
             this.clonedPeopleList = [...this.peopleList];
             this.cleanUp();
         }
+        focusPersonInput();
       },
       removePerson(person){
         this.peopleList = this.peopleList.filter(p => p !== person)
@@ -128,7 +134,7 @@
 
                 let personIndex = getRandomIntInclusive(0,this.peopleList.length-1)
                 this.peopleDrawn.push( this.peopleList[personIndex] );
-                
+
                 this.lastDrawnMode = 'repeat'; 
             }
         }
