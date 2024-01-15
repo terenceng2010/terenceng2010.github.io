@@ -148,7 +148,7 @@
         const namesParam = urlParams.get('names');
         console.log(namesParam)
         if(namesParam){
-            this.peopleList = namesParam.split(';')
+            this.peopleList = namesParam.split(',')
             this.clonedPeopleList = [...this.peopleList];
         }  
       }
