@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who'll be the next...?</title>
+</head>
+<body v-scope>
+    <h1>Who'll be the next...?</h1>
+    <section class="add-people">
+        <h3>Add People</h3>
+        <p>Please input some people to begin:</p>
+        <input v-model="inputPersonName" type="text" @keydown.enter="addPerson" placeholder="Add a person" /> 
+        <button type="button" @click="addPerson">Add</button>
+    </section>
+    <section class="manage-people-list">
+        <h3>Manage People List</h3>
+        Number of People: {{numberOfPeople}}
+        <ul v-for="person in peopleList">
+            <li>{{person}} <button type="button" title="Remove" @click="peopleList = peopleList.filter(p => p !== person)">x</button></li>
+        </ul>
+    </section>
+    <section class="draw-host">
+        <h3>Draw Someone</h3>
+        <p><label><input type="checkbox" v-model="isNoRepeat">No-repeat?</input></label></p>
+        <button type="button" @click="drawPerson">Draw</button> <button type="button" @click="clearDrawPerson">Clear</button>
+        <p> Host: {{peopleDrawnText}}</p>
+    </section> 
+</body>
+<script>
+    // Generates a random integer between the specified minimum and maximum values (inclusive).
+    // 
+    // Parameters:
+    // - min: The minimum value for the random integer.
+    // - max: The maximum value for the random integer.
+    // 
+    // Returns:
+    // The randomly generated integer.
+    function getRandomIntInclusive(min, max) {
+        const randomBuffer = new Uint32Array(1);
+        window.crypto.getRandomValues(randomBuffer);
+        let randomNumber = randomBuffer[0] / (0xffffffff + 1);
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(randomNumber * (max - min + 1)) + min;
+    }
+</script>
+<script type="module">
+    import { createApp } from 'https://unpkg.com/petite-vue?module'
+  
+    createApp({
+      inputPersonName: '',
+      peopleList: [],
+      clonedPeopleList: [],
+      isNoRepeat: true,
+      peopleDrawn: [],
+      get peopleDrawnText(){
+        return this.peopleDrawn.join(', ')  
+      },
+      get numberOfPeople(){
+        return this.peopleList.length
+      },
+      // methods
+      addPerson() {
+        if(this.inputPersonName === ''){
+            window.alert('Please provide a name!');
+        }
+        else if ( this.peopleList.find(person => person === this.inputPersonName) ){
+            window.alert('Person already exists! Please provide a unique name.');
+        }else{
+            this.peopleList.push(this.inputPersonName);
+            this.inputPersonName = '';
+            this.clonedPeopleList = [...this.peopleList];
+            this.clearDrawPerson();
+        }
+      },
+      drawPerson(){
+        if(this.peopleList.length == 0){
+            window.alert('Please add people first!');
+        }else{
+            if(this.isNoRepeat){
+                if(this.clonedPeopleList.length == 0){
+                    this.clonedPeopleList = [...this.peopleList];
+                    this.peopleDrawn = [];
+                }
+                let personIndex = getRandomIntInclusive(0,this.clonedPeopleList.length-1)
+                this.peopleDrawn.push(this.clonedPeopleList[personIndex]);
+                this.clonedPeopleList = this.clonedPeopleList.toSpliced(personIndex,1);
+                if(this.clonedPeopleList.length == 0){
+                    window.alert('All people have been drawn!');
+                }                
+            }else{
+                let personIndex = getRandomIntInclusive(0,this.peopleList.length-1)
+                this.peopleDrawn.push( this.peopleList[personIndex] );
+            }
+        }
+     },
+     clearDrawPerson(){
+         this.peopleDrawn = [];
+     }
+    }).mount()
+  </script>
+</html>
