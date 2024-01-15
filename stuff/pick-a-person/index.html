@@ -7,7 +7,7 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">    
 </head>
-<body v-scope>
+<body v-scope @vue:mounted="mounted">
     <div class="container is-fluid">
         <h1 class="is-size-3">Who'll be the next...?</h1>
         <div class="columns is-gapless">
@@ -139,10 +139,19 @@
             }
         }
      },
-     cleanUp(){
+      cleanUp(){
         this.clonedPeopleList = [...this.peopleList];
         this.peopleDrawn = [];
-     }
+      },
+      mounted(){
+        const urlParams = new URLSearchParams(window.location.search);
+        const namesParam = urlParams.get('names');
+        console.log(namesParam)
+        if(namesParam){
+            this.peopleList = namesParam.split(';')
+            this.clonedPeopleList = [...this.peopleList];
+        }  
+      }
     }).mount()
   </script>
 </html>
