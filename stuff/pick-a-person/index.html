@@ -43,7 +43,7 @@
             <p><label class="checkbox"><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">
                 No-repeat?</input></label></p>
             <button :disabled="peopleList.length === 0"  class="button is-primary" type="button" @click="drawPerson">Draw</button>
-            <button :disabled="peopleDrawn.length === 0"  class="button is-warning" type="button" @click="clearDrawPerson">Clear</button>
+            <button :disabled="peopleDrawn.length === 0"  class="button is-warning" type="button" @click="cleanUp">Clear</button>
             <p>Result: {{peopleDrawnText}}</p>
         </section> 
     </div>
@@ -119,9 +119,6 @@
                 this.peopleDrawn.push( this.peopleList[personIndex] );
             }
         }
-     },
-     clearDrawPerson(){
-         this.peopleDrawn = [];
      },
      cleanUp(){
         this.clonedPeopleList = [...this.peopleList];
