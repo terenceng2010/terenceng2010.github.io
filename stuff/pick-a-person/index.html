@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">    
 </head>
 <body v-scope>
-    <div class="container">
+    <div class="container is-fluid">
         <h1 class="is-size-3">Who'll be the next...?</h1>
-        <div class="columns is-mobile is-gapless">
+        <div class="columns is-gapless">
             <div class="column is-half">
-                <section class="add-people section">
+                <section class="add-people">
                     <div class="columns">
                         <div class="column">
                             <div class="field has-addons">
@@ -28,7 +28,7 @@
                 </section>
             </div>
             <div class="column">
-                <section class="manage-people-list section">
+                <section class="manage-people-list ">
                     <h3 class="is-size-5">List of People ({{numberOfPeople}})</h3>
                     <ul v-for="person in peopleList">
                         <li>{{person}} <button  class="delete" type="button" title="Remove" @click="removePerson(person)"></button></li>
@@ -38,7 +38,7 @@
         </div>     
 
 
-        <section class="draw-host section">
+        <section class="draw-host">
             <h3 class="is-size-4">Draw Someone</h3>
             <p><label class="checkbox"><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">
                 No-repeat?</input></label></p>
