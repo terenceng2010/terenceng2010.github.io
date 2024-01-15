@@ -1,67 +1,85 @@
 <html>
+
 <head>
-    <title>Terence</title>
+    <title>Terence Ng</title>
 </head>
 <script>
-document.addEventListener("DOMContentLoaded", function(event) {
-      
-      var d = new Date();
-      var h = d.getHours();
-      console.log(h);
-      if( h > 6 && h < 17){
-            
-      }else{
-        document.body.className = 'night';
-      }
+    document.addEventListener("DOMContentLoaded", function (event) {
 
-      document.querySelector('.banner').addEventListener("click",function(){
-        document.querySelector('.banner').className += " onClick";
-        window.setTimeout(function(){
-            document.querySelector('.banner').className = "banner";
-        },1000);
-      });
-});    
+        var d = new Date();
+        var h = d.getHours();
+        console.log(h);
+        if (h > 6 && h < 17) {
+
+        } else {
+            document.body.className = 'night';
+        }
+
+        document.querySelector('.banner').addEventListener("click", function () {
+            document.querySelector('.banner').className += " onClick";
+            window.setTimeout(function () {
+                document.querySelector('.banner').className = "banner";
+            }, 1000);
+        });
+    });
 
 
 </script>
 <link rel="stylesheet" type="text/css" href="css/index.css?v=0.1">
 
-<div style="width: 100%; height: 150px; background: url(&quot;1469524083.png.png&quot;) repeat-x scroll 0% 100%, url(&quot;1469523736.png.png&quot;) repeat-x scroll 0% 95%, transparent url(&quot;1469522680.png.png&quot;) repeat-x scroll 0% 0%;" class="banner">
+<div style="width: 100%; height: 150px; background: url(&quot;1469524083.png.png&quot;) repeat-x scroll 0% 100%, url(&quot;1469523736.png.png&quot;) repeat-x scroll 0% 95%, transparent url(&quot;1469522680.png.png&quot;) repeat-x scroll 0% 0%;"
+    class="banner">
 
-<div class='car-wrapper'><div style="height: 30px; position: absolute; top: 110px; left: 5%; width: 50px; background: transparent url(&quot;1469527984.png.png&quot;) no-repeat scroll -53px 0px;" class="car">
-    </div></div>	
-	
+    <div class='car-wrapper'>
+        <div style="height: 30px; position: absolute; top: 110px; left: 5%; width: 50px; background: transparent url(&quot;1469527984.png.png&quot;) no-repeat scroll -53px 0px;"
+            class="car">
+        </div>
+    </div>
+
 </div>
 
 
-<aside class='myself'>Terence. A software developer.</aside>
+<aside class='myself'>Hi I'm Terence. Software developer from Hong Kong, living in United Kingdom since 2021.</aside>
 <section class='timeline-title'>
-<h3>Timeline</h3>
+    <h3>Timeline</h3>
 </section>
 <section class='timeline'>
     <ul>
-        <li><label for="">2016-</label><br/>ESRI CHINA HK</li>
-        <li><label for="">2016-2016</label><br/>Little Genius - cross-platform IM.</li>
-        <li><label for="">2013-2015</label><br/>ASM as a programmer. SAP, .NET, production planning and so on...</li>
+        <p>United Kingdom</p>
+        <li><label for="">2022-2023</label><br />Atkins - GIS Developer</li>
+        <li><label for="">2021</label><br />Silverbear - .NET Developer with Dynamics 365 Development</li>
+        <p>Hong Kong</p>
+        <li><label for="">2020</label><br />Freelance GIS Developer in Hong Kong</li>
+        <li><label for="">2018-2020</label><br />Exactal - Product Enginner</li>
+        <li><label for="">2016-2018</label><br />ESRI CHINA HK - GIS Developer</li>
+        <li><label for="">2016-2016</label><br />Little Genius - Software Developer for the education sector.</li>
+        <li><label for="">2013-2015</label><br />ASM - .NET Programmer in a manufacturing company.</li>
         <li>
-            <label for="">2010-2013</label><br/>Studying Information Systems as a bachelor in HKBU.
+            <label for="">2010-2013</label><br />Studying Information Systems as a bachelor in HKBU.
         </li>
     </ul>
 </section>
-<section class='pet-projects-title'><h3>Pet Projects</h3></section>
-<section class='pet-projects'>
-    <div class='project'><h3>TLDR - Electron Client<h3><p>Quick reference of Linux commands <a href='https://github.com/terenceng2010/tldr-electron'>Try It</a></p></div>
-    <!--<div class='project'><h3>Votetage<h3><p>Real-time Voting app. Made With React Native. Available <a href='https://play.google.com/store/apps/details?id=com.terenceng2010.votetage&hl=zh-TW'>here</a></p></div>
-    <div class='project'><h3>SnapBook</h3><p>Help you post and delete a FB post after certain period</p></div>-->
-    <!--<div class='project'><h3>Is the sportground open?</h3><p>Extract LCSD PDF to see whether you can go to jog today</p></div>-->
-    <div class='project'><h3>Code Playground<h3><p>Where I test various <a href='./blog/build'> stuff</a></p></div>
-   <!-- <div class='project'><h3><h3><p></p></div>-->
+<!-- <section class='pet-projects-title'>
+    <h3>Pet Projects</h3>
 </section>
+<section class='pet-projects'>
+    <div class='project'>
+        <h3>TLDR - Electron Client<h3>
+                <p>Quick reference of Linux commands <a href='https://github.com/terenceng2010/tldr-electron'>Try It</a>
+                </p>
+    </div>
+    <div class='project'>
+        <h3>Code Playground<h3>
+                <p>Where I test various <a href='./blog/build'> stuff</a></p>
+    </div>
+</section> -->
 <section class='contact-and-blog-title'>
     <h3>Contact</h3>
 </section>
 <section class='contact-and-blog'>
-    Email: terenceng2010@gmail.com
-    GitHub: <a href='https://github.com/terenceng2010'>terenceng2010</a>
+    <p>Email: terenceng2010@gmail.com</p>
+    <p><a href='https://github.com/terenceng2010'>GitHub</a></p>
+    <p><a href='https://www.linkedin.com/in/terence-ng-10266b27/'>LinkedIn</a></p>
 </section>
+
 </html>
