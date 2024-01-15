@@ -22,7 +22,7 @@
     </section>
     <section class="draw-host">
         <h3>Draw Someone</h3>
-        <p><label><input type="checkbox" v-model="isNoRepeat">No-repeat?</input></label></p>
+        <p><label><input type="checkbox" @change="cleanUp" v-model="isNoRepeat">No-repeat?</input></label></p>
         <button type="button" @click="drawPerson">Draw</button> <button type="button" @click="clearDrawPerson">Clear</button>
         <p> Host: {{peopleDrawnText}}</p>
     </section> 
@@ -97,6 +97,10 @@
      },
      clearDrawPerson(){
          this.peopleDrawn = [];
+     },
+     cleanUp(){
+        this.clonedPeopleList = [...this.peopleList];
+        this.peopleDrawn = [];
      }
     }).mount()
   </script>
