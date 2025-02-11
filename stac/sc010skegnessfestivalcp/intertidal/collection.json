@@ -5,7 +5,12 @@
   "description": "Intertidal Dataset for SC010 - Skegness Festival CP, containing bi-weekly entries.",
   "extent": {
     "spatial": {
-      "bbox": [[-100.0, 30.0, -90.0, 40.0]]
+      "bbox": [[
+        0.3371724382020034,
+        53.131612273034364,
+        0.3647163507010589,
+        53.15671725160573
+      ]]
     },
     "temporal": {
       "interval": [["2023-01-01T00:00:00Z", null]]
