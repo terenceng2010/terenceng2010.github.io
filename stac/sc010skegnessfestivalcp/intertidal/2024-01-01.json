@@ -1,0 +1,34 @@
+{
+  "stac_version": "1.0.0",
+  "id": "site-sc010-dataset-Intertidal-2024-01-01",
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [-100.0, 30.0],
+        [-90.0, 30.0],
+        [-90.0, 40.0],
+        [-100.0, 40.0],
+        [-100.0, 30.0]
+      ]
+    ]
+  },
+  "bbox": [-100.0, 30.0, -90.0, 40.0],
+  "properties": {
+    "datetime": "2024-01-01T00:00:00Z",
+    "description": "Intertidal Dataset for SC010 - Skegness Festival CP - 01 January 2024 Intertidal Dataset Entry"
+  },
+  "assets": {
+    "geotiff": {
+      "href": "https://s3.coastsense.com/sc010skegnessfestivalcp/subtidal/2023/mean_depth_map_2023_11_05000000_sc010_Skegness_Festival_CP.tiff",
+      "title": "SC010 - GeoTIFF 01 January 2024 Intertidal",
+      "type": "image/tiff; application=geotiff"
+    },
+    "metadata": {
+      "href": "https://your-minio-server.com/site-1/dataset-a/2024-01-metadata.json",
+      "title": "Metadata for SC010 - 01 January 2024 Intertidal",
+      "type": "application/json"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "stac_version": "1.0.0",
+  "id": "sc010skegnessfestivalcp",
+  "type": "Collection",
+  "description": "SC010 - Skegness Festival CP",
+  "extent": {
+    "spatial": {
+      "bbox": [[-100.0, 30.0, -90.0, 40.0]]
+    },
+    "temporal": {
+      "interval": [["2023-01-01T00:00:00Z", null]]
+    }
+  },
+  "links": [
+    {
+      "rel": "child",
+      "href": "intertidal/collection.json",
+      "type": "application/json",
+      "title": "Intertidal"
+    },
+    {
+      "rel": "child",
+      "href": "subtidal/collection.json",
+      "type": "application/json",
+      "title": "Subtidal"
+    },
+    {
+      "rel": "child",
+      "href": "Roughness/collection.json",
+      "type": "application/json",
+      "title": "Roughness"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "stac_version": "1.0.0",
+  "id": "my-geospatial-catalog",
+  "type": "Catalog",
+  "description": "A geospatial catalog for multiple sites and datasets.",
+  "links": [
+    {
+      "rel": "child",
+      "href": "sc010skegnessfestivalcp/collection.json",
+      "type": "application/json",
+      "title": "SC010 - Skegness Festival CP"
+    },
+    {
+      "rel": "child",
+      "href": "site-2/site-2.json",
+      "type": "application/json",
+      "title": "Site 2"
+    },
+    {
+      "rel": "child",
+      "href": "site-3/site-3.json",
+      "type": "application/json",
+      "title": "Site 3"
+    }
+  ]
+}

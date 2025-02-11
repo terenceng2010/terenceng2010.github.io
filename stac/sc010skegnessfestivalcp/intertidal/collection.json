@@ -1,0 +1,28 @@
+{
+  "stac_version": "1.0.0",
+  "id": "site-sc010-dataset-Intertidal",
+  "type": "Collection",
+  "description": "Intertidal Dataset for SC010 - Skegness Festival CP, containing bi-weekly entries.",
+  "extent": {
+    "spatial": {
+      "bbox": [[-100.0, 30.0, -90.0, 40.0]]
+    },
+    "temporal": {
+      "interval": [["2023-01-01T00:00:00Z", null]]
+    }
+  },
+  "links": [
+    {
+      "rel": "child",
+      "href": "2024-01-01.json",
+      "type": "application/json",
+      "title": "01 January 2024 Intertidal Dataset Entry"
+    },
+    {
+      "rel": "child",
+      "href": "2024-01-10.json",
+      "type": "application/json",
+      "title": "10 January 2024 Intertidal Dataset Entry"
+    }
+  ]
+}
