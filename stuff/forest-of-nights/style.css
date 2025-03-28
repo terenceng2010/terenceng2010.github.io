@@ -1,0 +1,149 @@
+html, body {
+    height: 100%; /* Ensure body can fill screen */
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent scrollbars caused by drawer/etc */
+}
+
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f0f0f0;
+    /* Use 'contain' to prevent accidental pull-to-refresh or overscroll glow */
+    overscroll-behavior: contain;
+    touch-action: none; /* Prevent default touch actions like scroll/zoom globally */
+}
+
+h1 {
+    margin: 10px 0;
+    flex-shrink: 0; /* Prevent title from shrinking */
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.controls {
+    margin-bottom: 10px;
+    flex-shrink: 0; /* Prevent controls from shrinking */
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+button {
+    padding: 8px 15px;
+    margin: 0 5px;
+    cursor: pointer;
+}
+
+#sceneCanvas {
+    border: 1px solid black;
+    background-color: #eee; /* Placeholder, overwritten by script */
+    cursor: default;
+    display: block;
+    /* Responsive sizing managed by script */
+    max-width: 100%; /* Ensure it doesn't overflow */
+    box-sizing: border-box; /* Include border in size */
+     touch-action: none; /* Explicitly disable touch actions on canvas */
+     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on touch devices */
+}
+
+#drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #d3d3d3;
+    border-top: 2px solid #aaa;
+    padding: 5px; /* Reduced padding */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column; /* Stack header and items */
+    align-items: center; /* Center header */
+    z-index: 10;
+    flex-shrink: 0; /* Prevent drawer from shrinking */
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.drawer-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+    width: 100%;
+    text-align: center;
+}
+
+.drawer-items-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px; /* Reduced gap */
+    width: 100%;
+}
+
+
+.drawer-item {
+    padding: 8px 10px; /* Adjusted padding */
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: grab;
+    text-align: center;
+    font-size: 0.9em; /* Slightly smaller text */
+    user-select: none; /* Redundant but safe */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    touch-action: none; /* Disable touch scroll etc. on individual items */
+     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on touch devices */
+
+}
+
+.drawer-item:active {
+    cursor: grabbing;
+    background-color: #e0e0e0;
+}
+
+/* Specific highlight for the draw strip button */
+.drawer-item[data-type="stripLight"] {
+    background-color: #ffccff;
+}
+
+/* Fullscreen Styles */
+body:fullscreen,
+body:-webkit-full-screen, /* Safari */
+body:-moz-full-screen { /* Firefox */
+     /* Optionally hide everything except the canvas container if needed */
+}
+
+body:fullscreen #sceneCanvas,
+body:-webkit-full-screen #sceneCanvas,
+body:-moz-full-screen #sceneCanvas {
+    width: 100%;     /* Fill screen width */
+    height: 100%;    /* Fill screen height */
+    max-height: 100vh; /* Explicitly allow full viewport height */
+    object-fit: contain; /* Maintain aspect ratio if needed, or 'fill' */
+    border: none; /* Remove border in fullscreen */
+    cursor: default; /* Ensure cursor is reset */
+}
+
+body:fullscreen #drawer,
+body:-webkit-full-screen #drawer,
+body:-moz-full-screen #drawer {
+    display: none; /* Hide drawer in fullscreen */
+}
+
+body:fullscreen h1,
+body:-webkit-full-screen h1,
+body:-moz-full-screen h1,
+body:fullscreen .controls,
+body:-webkit-full-screen .controls,
+body:-moz-full-screen .controls {
+     display: none; /* Hide controls & title in fullscreen */
+}

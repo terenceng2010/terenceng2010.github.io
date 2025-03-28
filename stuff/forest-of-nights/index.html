@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forest of Lights</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Forest of Lights</h1>
+
+    <div class="controls">
+        <button id="btn-midnight">Set to Midnight</button>
+        <button id="btn-dawn">Set to Dawn</button>
+        <button id="btn-clear">Clear Lights</button>
+        <button id="btn-fullscreen">Fullscreen</button>
+    </div>
+
+    <canvas id="sceneCanvas"></canvas>
+
+    <div id="drawer">
+        <div class="drawer-header">Add Lights (Drag to Scene)</div>
+        <div class="drawer-items-container">
+            <div class="drawer-item" draggable="true" data-type="deskLamp">Desk Lamp</div>
+            <div class="drawer-item" draggable="true" data-type="penguinLed">Penguin LED</div>
+            <div class="drawer-item" draggable="true" data-type="campingLight">Camping Light</div>
+            <div class="drawer-item" draggable="true" data-type="torch">Nightwatch Torch</div>
+            <div class="drawer-item" draggable="true" data-type="fireStick">Fire Stick</div>
+            <div class="drawer-item" draggable="true" data-type="campfire">Campfire (Flick)</div>
+            <div class="drawer-item" draggable="true" data-type="moon">Moon</div>
+            <!-- Strip Light now uses placeholder drag type -->
+            <div class="drawer-item" draggable="true" data-type="stripLight">Draw Strip</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
