@@ -22,6 +22,13 @@ let treeOffset = 0;
 const STAR_SPEED = 0.01; // Much slower drift
 const TREE_SPEED = 0.03; // Much slower drift
 
+// === NEW Touch Drag State ===
+let isTouchDraggingDrawerItem = false;
+let touchDraggedItemType = null;
+let touchDragGhostElement = null;
+let touchDragStartX = 0;
+let touchDragStartY = 0;
+
 // --- Drag and Drop State ---
 let isDraggingItem = false;
 let draggedItemType = null; // Holds the type ('deskLamp', 'moon', 'stripLightPlaceholder', etc.)
@@ -646,6 +653,14 @@ function gameLoop() {
          ctx.restore(); // Resets line dash, lineWidth, etc.
      }
 
+    // === NEW: Remove Ghost Element if drag was cancelled unexpectedly ===
+    // Defensive cleanup in case touchend didn't fire correctly
+    if (!isTouchDraggingDrawerItem && touchDragGhostElement) {
+         console.log("Ghost cleanup in game loop (unexpected)");
+         document.body.removeChild(touchDragGhostElement);
+         touchDragGhostElement = null;
+    }
+	
     // Request next frame
     animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -677,50 +692,185 @@ function getPointerPos(event) {
     return { x, y };
 }
 
-// --- Drawer Item Drag Start ---
+// --- Drawer Item Interactions (HTML5 Drag & NEW Touch Drag) ---
 drawerItems.forEach(item => {
+
+    // --- HTML5 Drag & Drop (for Mouse) ---
     item.addEventListener('dragstart', (e) => {
-        // Clear potentially conflicting interaction modes first
-        isDrawingStripMode = false;
-        isActivelyDrawingStrip = false;
-        isInteractingCampfire = false;
-        stripPlaceholderPos = null; // Ensure prompt is cleared
+        // Standard drag logic remains the same...
+        isDrawingStripMode = false; isActivelyDrawingStrip = false; isInteractingCampfire = false; stripPlaceholderPos = null;
 
         const type = item.getAttribute('data-type');
-
-        // Initiate dragging state
-        isDraggingItem = true;
-         // Special placeholder type for strip light during drag
+        isDraggingItem = true; // Flag for standard drag
         draggedItemType = (type === 'stripLight') ? 'stripLightPlaceholder' : type;
 
-        console.log(`Drag Start: ${draggedItemType}`);
-        canvas.style.cursor = 'grabbing'; // Indicate something is being dragged
+        console.log(`Drag Start (Mouse): ${draggedItemType}`);
+        canvas.style.cursor = 'grabbing';
 
-        // Set data for the drop event
         if(e.dataTransfer) {
-             e.dataTransfer.setData('text/plain', draggedItemType);
-             e.dataTransfer.effectAllowed = 'copy';
-              // Optional: try setting a drag image (can be tricky)
-             // try { e.dataTransfer.setDragImage(item, e.offsetX, e.offsetY); } catch (err) {}
-         } else {
-              console.warn("DataTransfer API not fully available.");
-         }
+            e.dataTransfer.setData('text/plain', draggedItemType);
+            e.dataTransfer.effectAllowed = 'copy';
+        }
     });
-     // Add dragend to clean up if drag is cancelled off-window etc.
-     item.addEventListener('dragend', (e) => {
-         // Check if drop happened on canvas first - drop handler resets state
-         // If draggedItemType is still set here, it means drop likely didn't happen or failed
-         if (isDraggingItem && draggedItemType) {
-             console.log("Drag End without successful drop - resetting state");
-              isDraggingItem = false;
-              draggedItemType = null;
-              canvas.style.cursor = 'default'; // Reset cursor
-              // If it was the strip placeholder drag cancelled, ensure mode is off
-              isDrawingStripMode = false;
-              stripPlaceholderPos = null;
-         }
-     });
+
+    item.addEventListener('dragend', (e) => {
+        // Standard drag cleanup...
+        if (isDraggingItem) { // Only reset if mouse drag was happening
+            console.log("Drag End (Mouse) - Resetting");
+             isDraggingItem = false;
+             draggedItemType = null;
+             // Cursor is reset by drop or pointer events on canvas
+              // Reset just in case if no drop occurs:
+              if (!isDrawingStripMode && !isInteractingCampfire && !isDraggingItem && !isTouchDraggingDrawerItem){
+                  canvas.style.cursor = 'default';
+              }
+             // Ensure strip placeholder modes reset if drag cancelled
+             if (draggedItemType === 'stripLightPlaceholder'){
+                  isDrawingStripMode = false;
+                  stripPlaceholderPos = null;
+             }
+        }
+    });
+
+
+    // --- NEW: Touch Event Listeners for Drawer Items ---
+    item.addEventListener('touchstart', (e) => {
+         // If already dragging with touch, ignore new touch
+         if (isTouchDraggingDrawerItem) return;
+          // Ignore if mouse drag is somehow active? (Shouldn't happen concurrently)
+         if (isDraggingItem) return;
+
+         // Prevent multi-touch drags for simplicity
+          if (e.touches.length > 1) { return; }
+
+          e.preventDefault(); // *** Crucial: Prevent page scroll during item drag ***
+
+          const type = item.getAttribute('data-type');
+          isTouchDraggingDrawerItem = true; // Set touch drag flag
+          touchDraggedItemType = (type === 'stripLight') ? 'stripLightPlaceholder' : type;
+          const touch = e.touches[0];
+          touchDragStartX = touch.clientX;
+          touchDragStartY = touch.clientY;
+
+          console.log(`Touch Start Drag: ${touchDraggedItemType}`);
+
+          // Create the visual ghost element
+          touchDragGhostElement = document.createElement('div');
+          touchDragGhostElement.className = 'drag-ghost';
+          touchDragGhostElement.textContent = item.textContent; // Copy text
+           // Special styling if it's the strip light
+          if (type === 'stripLight') {
+              touchDragGhostElement.style.backgroundColor = 'rgba(255, 204, 255, 0.8)'; // Lighter pink
+              touchDragGhostElement.style.borderColor = '#e0a0e0';
+          }
+          document.body.appendChild(touchDragGhostElement);
+
+           // Initial positioning - slightly offset from finger recommended
+          const offsetX = -touchDragGhostElement.offsetWidth / 2; // Center horizontally
+          const offsetY = -touchDragGhostElement.offsetHeight -10; // Position above finger
+          touchDragGhostElement.style.transform = `translate3d(${touch.clientX + offsetX}px, ${touch.clientY + offsetY}px, 0)`;
+
+          // Add move/end listeners to the *document* to capture events anywhere
+          document.addEventListener('touchmove', handleDocumentTouchMove, { passive: false }); // Need preventDefault in move
+          document.addEventListener('touchend', handleDocumentTouchEnd);
+          document.addEventListener('touchcancel', handleDocumentTouchEnd); // Treat cancel like end
+
+     }, { passive: false }); // Need passive false on start to allow preventDefault
+
 });
+
+// --- Global Touch Handlers (added dynamically during touch drag) ---
+
+function handleDocumentTouchMove(e) {
+    if (!isTouchDraggingDrawerItem) return;
+
+    e.preventDefault(); // *** Crucial: Prevent page scroll while dragging item ***
+
+    if (e.touches.length === 1 && touchDragGhostElement) {
+        const touch = e.touches[0];
+        // Update ghost position (offset same as in start)
+        const offsetX = -touchDragGhostElement.offsetWidth / 2;
+        const offsetY = -touchDragGhostElement.offsetHeight - 10;
+         touchDragGhostElement.style.transform = `translate3d(${touch.clientX + offsetX}px, ${touch.clientY + offsetY}px, 0)`;
+    }
+}
+
+function handleDocumentTouchEnd(e) {
+     if (!isTouchDraggingDrawerItem) return;
+
+     // No preventDefault here needed usually, but won't hurt
+
+     console.log(`Touch End Drag: ${touchDraggedItemType}`);
+     const touch = e.changedTouches[0]; // Use changedTouches for end event
+
+     // 1. Check if dropped over the canvas
+     const canvasRect = canvas.getBoundingClientRect();
+     let droppedOnCanvas = false;
+     if (touch) { // Check if touch data exists (might not on cancel sometimes?)
+        droppedOnCanvas = (
+             touch.clientX >= canvasRect.left &&
+             touch.clientX <= canvasRect.right &&
+             touch.clientY >= canvasRect.top &&
+             touch.clientY <= canvasRect.bottom
+         );
+     }
+
+
+     if (droppedOnCanvas) {
+         console.log("--> Dropped on Canvas (Touch)");
+         // Calculate position relative to canvas
+         const pos = getPointerPos(e); // Use existing function, works for touch end event
+
+          // Reuse the drop logic (same as mouse drop)
+         // Handle STRIP LIGHT Placeholder Drop
+         if (touchDraggedItemType === 'stripLightPlaceholder') {
+             isDrawingStripMode = true; // Activate mode
+             stripPlaceholderPos = pos; // Store pos
+             canvas.style.cursor = 'crosshair'; // Show draw cursor (less relevant on touch but consistent)
+             console.log("    Strip Light Placeholder set up.");
+         }
+         // Handle MOON Drop
+         else if (touchDraggedItemType === 'moon') {
+             const newItem = { type: 'moon', x: pos.x, y: Math.min(pos.y, canvasHeight * 0.7), state: 'on' };
+             if (!moon) moon = newItem; else { moon.x = pos.x; moon.y = Math.min(pos.y, canvasHeight * 0.7); }
+              console.log("    Moon position updated.");
+         }
+         // Handle REGULAR Light Drops
+         else {
+             const newItem = {
+                 type: touchDraggedItemType, x: pos.x, y: pos.y,
+                 state: (touchDraggedItemType === 'campfire') ? 'unlit' : 'on',
+                 flickIntensity: 0, points: [], embers: []
+             };
+             placedLights.push(newItem);
+              console.log(`    Light '${touchDraggedItemType}' added.`);
+         }
+         redrawScene(); // Update canvas
+     } else {
+          console.log("--> Dropped outside Canvas (Touch)");
+           // Drag cancelled if dropped elsewhere
+           if (touchDraggedItemType === 'stripLightPlaceholder'){
+                 isDrawingStripMode = false;
+                 stripPlaceholderPos = null;
+           }
+      }
+
+     // 2. Cleanup
+     if (touchDragGhostElement) {
+         document.body.removeChild(touchDragGhostElement);
+     }
+     touchDragGhostElement = null;
+     isTouchDraggingDrawerItem = false;
+     touchDraggedItemType = null;
+     document.removeEventListener('touchmove', handleDocumentTouchMove);
+     document.removeEventListener('touchend', handleDocumentTouchEnd);
+     document.removeEventListener('touchcancel', handleDocumentTouchEnd);
+
+      // Reset cursor only if strip draw mode wasn't just activated
+      if (!isDrawingStripMode){
+          canvas.style.cursor = 'default';
+      }
+}
 
 // --- Canvas Drag Over (Allow Drop) ---
 canvas.addEventListener('dragover', (e) => {
@@ -730,63 +880,63 @@ canvas.addEventListener('dragover', (e) => {
     }
 });
 
-// --- Canvas Drop Handler ---
+// --- Canvas Drop (Mouse - remains largely the same, checks correct flags) ---
 canvas.addEventListener('drop', (e) => {
     e.preventDefault();
-    const pos = getPointerPos(e); // Get drop position relative to canvas
+    const pos = getPointerPos(e); // Works for drop events too
 
-    // Retrieve the type stored during dragstart
-    const droppedType = e.dataTransfer ? e.dataTransfer.getData('text/plain') : draggedItemType; // Fallback
+    // Make sure this drop is from a *mouse* drag
+    if (!isDraggingItem) { // If not a mouse drag, ignore. Touch handled by touchend.
+         console.log("Drop event ignored - not a mouse drag.");
+         return;
+     }
 
-    console.log(`Drop Event. Type: ${droppedType}, Pos: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}`);
+    const droppedType = e.dataTransfer ? e.dataTransfer.getData('text/plain') : draggedItemType; // Fallback needed?
 
+    console.log(`Drop Event (Mouse). Type: ${droppedType}, Pos: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}`);
 
-    if (isDraggingItem && droppedType) {
+    if (isDraggingItem && droppedType) { // Double check flag just in case
          // === Handle STRIP LIGHT Placeholder Drop ===
          if (droppedType === 'stripLightPlaceholder') {
-             isDrawingStripMode = true; // ACTIVATE strip drawing mode
-             stripPlaceholderPos = pos; // Store location for the prompt text
-             canvas.style.cursor = 'crosshair'; // Change cursor to indicate drawing mode
-             console.log("--> Strip Light Placeholder Dropped. Mode Active.");
-             // We *don't* create the light object yet
+             isDrawingStripMode = true; // Activate strip drawing mode
+             stripPlaceholderPos = pos;
+             canvas.style.cursor = 'crosshair';
+             console.log("--> Strip Light Placeholder Dropped (Mouse).");
          }
          // === Handle MOON Drop ===
          else if (droppedType === 'moon') {
-              const newItem = { type: 'moon', x: pos.x, y: Math.min(pos.y, canvasHeight * 0.7), state: 'on' };
-              if (!moon) {
-                  moon = newItem;
-              } else { // If moon already exists, just move it
-                  moon.x = pos.x;
-                  moon.y = Math.min(pos.y, canvasHeight * 0.7);
-              }
-              console.log("--> Moon Dropped/Moved.");
+             const newItem = { type: 'moon', x: pos.x, y: Math.min(pos.y, canvasHeight * 0.7), state: 'on' };
+             if (!moon) moon = newItem; else { moon.x = pos.x; moon.y = Math.min(pos.y, canvasHeight * 0.7); }
+             console.log("--> Moon Dropped/Moved (Mouse).");
          }
          // === Handle Other REGULAR Light Drops ===
          else {
-             const newItem = {
+              const newItem = {
                  type: droppedType, x: pos.x, y: pos.y,
-                 state: (droppedType === 'campfire') ? 'unlit' : 'on', // Campfire starts unlit
-                 flickIntensity: 0, points: [], embers: [] // Default properties
+                 state: (droppedType === 'campfire') ? 'unlit' : 'on',
+                 flickIntensity: 0, points: [], embers: []
              };
              placedLights.push(newItem);
-             console.log(`--> Regular light '${droppedType}' added.`);
+             console.log(`--> Regular light '${droppedType}' added (Mouse).`);
          }
-         redrawScene(); // Update the canvas immediately after drop
+         redrawScene(); // Update canvas immediately after drop
     } else {
-        console.warn("Drop event ignored - not dragging or type unknown.");
+        console.warn("Drop event occurred but not in valid mouse dragging state or type was lost.");
     }
 
-     // --- Reset states AFTER drop processing ---
+     // --- Reset states AFTER mouse drop processing ---
      isDraggingItem = false;
      draggedItemType = null;
-     // isDrawingStripMode remains TRUE if set by placeholder drop
-     isInteractingCampfire = false; // Ensure campfire interaction is reset
+     isInteractingCampfire = false;
 
      // Set cursor based on whether strip mode was just activated
      if (!isDrawingStripMode) {
          canvas.style.cursor = 'default';
-     }
+     } else {
+          canvas.style.cursor = 'crosshair';
+      }
 });
+
 
 
 // --- Canvas Pointer Event Handlers (Combined Mouse/Touch) ---

@@ -147,3 +147,25 @@ body:-webkit-full-screen .controls,
 body:-moz-full-screen .controls {
      display: none; /* Hide controls & title in fullscreen */
 }
+
+/* Style for the ghost element during touch drag */
+.drag-ghost {
+    position: absolute; /* Position relative to the viewport */
+    padding: 8px 10px;
+    background-color: rgba(248, 248, 248, 0.8); /* Semi-transparent */
+    border: 1px dashed #888;
+    border-radius: 5px;
+    font-size: 0.9em;
+    text-align: center;
+    z-index: 1000; /* Ensure it's above everything else */
+    cursor: grabbing;
+    pointer-events: none; /* Make sure ghost doesn't intercept touch events */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    /* Use transform for smooth movement */
+    transform: translate3d(0, 0, 0);
+    will-change: transform; /* Hint browser for performance */
+    white-space: nowrap; /* Prevent text wrapping */
+}
