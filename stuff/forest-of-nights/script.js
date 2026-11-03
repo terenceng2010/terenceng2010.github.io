@@ -7,6 +7,10 @@ const btnDawn = document.getElementById('btn-dawn');
 const btnClear = document.getElementById('btn-clear');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 
+// Set to true to see interaction logs in the console
+const DEBUG = false;
+function log(...args) { if (DEBUG) console.log(...args); }
+
 let canvasWidth, canvasHeight;
 let timeOfDay = 'midnight'; // 'midnight' or 'dawn'
 let placedLights = [];
@@ -21,6 +25,17 @@ let starOffset = 0;
 let treeOffset = 0;
 const STAR_SPEED = 0.01; // Much slower drift
 const TREE_SPEED = 0.03; // Much slower drift
+
+// Stars are generated once (normalised 0..1 positions) so they don't jump around every frame
+const STARS = Array.from({ length: 120 }, () => ({
+    u: Math.random(),
+    v: Math.random() * 0.75,
+    r: 0.4 + Math.random() * 0.9,
+    phase: Math.random() * Math.PI * 2,
+}));
+
+// Positive modulo (JS % keeps the sign of the dividend)
+function mod(n, m) { return ((n % m) + m) % m; }
 
 // === NEW Touch Drag State ===
 let isTouchDraggingDrawerItem = false;
@@ -48,8 +63,10 @@ let interactionStartPos = null; // Stores {x, y} of pointer down for flick calc
 let interactionStartTime = 0;
 
 // --- Animation State ---
-let frameCount = 0;
-let animationFrameId = null; // To cancel animation loop if needed
+let frameCount = 0; // Counts in 60fps-equivalent frames, so animation speed doesn't depend on screen refresh rate
+let animationFrameId = null;
+let lastFrameTime = null;
+let dt = 1; // Elapsed time this frame, in 60fps frames
 
 // --- Initialization ---
 function setupCanvas() {
@@ -84,20 +101,42 @@ function setupCanvas() {
        targetHeight = targetWidth / aspectRatio;
     }
 
+    const oldWidth = canvasWidth, oldHeight = canvasHeight;
     canvasWidth = Math.max(300, Math.floor(targetWidth)); // Use floor for integer pixels
     canvasHeight = Math.max(200, Math.floor(targetHeight));
 
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    canvas.style.width = `${canvasWidth}px`; // Set CSS size too for consistency
+    // Keep placed lights in the same relative spot when the canvas changes size (resize / fullscreen)
+    if (oldWidth && oldHeight && (oldWidth !== canvasWidth || oldHeight !== canvasHeight)) {
+        rescaleScene(canvasWidth / oldWidth, canvasHeight / oldHeight);
+    }
+
+    // Render at device pixel ratio so the scene is sharp on high-DPI screens.
+    // All drawing code keeps working in CSS pixels thanks to the transform.
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(canvasWidth * dpr);
+    canvas.height = Math.round(canvasHeight * dpr);
+    canvas.style.width = `${canvasWidth}px`;
     canvas.style.height = `${canvasHeight}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    lightMaskCanvas.width = canvas.width;
+    lightMaskCanvas.height = canvas.height;
+    lightMaskCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    lightMaskCanvas.width = canvasWidth;
-    lightMaskCanvas.height = canvasHeight;
+    log(`Canvas resized to: ${canvasWidth}x${canvasHeight} @${dpr}x`);
+    redrawScene();
+}
 
-    console.log(`Canvas resized to: ${canvasWidth}x${canvasHeight}`);
-    redrawScene(); // Trigger immediate redraw after resize
+function rescaleScene(sx, sy) {
+    const scalePoint = p => { p.x *= sx; p.y *= sy; };
+    placedLights.forEach(light => {
+        if (light.type === 'stripLight') light.points.forEach(scalePoint);
+        else scalePoint(light);
+        if (light.embers) light.embers.forEach(e => { e.ex *= sx; e.ey *= sy; });
+    });
+    if (moon) scalePoint(moon);
+    if (stripPlaceholderPos) scalePoint(stripPlaceholderPos);
+    currentStripPoints.forEach(scalePoint);
 }
 
 // --- Scene Drawing ---
@@ -118,24 +157,16 @@ function drawBackground() {
         ctx.fillStyle = '#1a1a00'; // Very dark green/brown
         ctx.fillRect(0, canvasHeight * 0.8, canvasWidth, canvasHeight * 0.2);
 
-        // Stars (Subtle and moving slowly)
-        //ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        //const starDrawWidth = canvasWidth * 1.5; // Draw across a wider area for smooth wrapping
-        //for (let i = 0; i < 120; i++) {
-        //    const xBase = Math.random() * starDrawWidth;
-        //     // Wrap position within the extended draw width
-        //    const xWrapped = (xBase + starOffset + starDrawWidth) % starDrawWidth;
-        //     // Translate back to be relative to canvas left edge
-        //    const x = xWrapped - (starDrawWidth - canvasWidth) / 2;
-		//
-        //     // Only draw if potentially visible
-        //     if (x > -10 && x < canvasWidth + 10) {
-        //        const y = Math.random() * canvasHeight * 0.75; // Slightly lower possible position
-        //        ctx.beginPath();
-        //        ctx.arc(x, y, Math.random() * 1.2, 0, Math.PI * 2);
-        //        ctx.fill();
-        //    }
-        //}
+        // Stars: fixed positions, drifting slowly and twinkling gently
+        STARS.forEach(star => {
+            const x = mod(star.u * canvasWidth + starOffset, canvasWidth);
+            const y = star.v * canvasHeight;
+            const twinkle = 0.45 + 0.35 * Math.sin(frameCount * 0.03 + star.phase);
+            ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
+            ctx.beginPath();
+            ctx.arc(x, y, star.r, 0, Math.PI * 2);
+            ctx.fill();
+        });
 
     } else { // Dawn
         // Lighter Sky Gradient
@@ -165,7 +196,8 @@ function drawForestSilhouette() {
         let treeXBase = (treeDrawWidth / (numTrees * 1.5)) * i;
 
         // Apply offset and wrap within the WIDER draw area
-        treeXBase = (treeXBase + treeOffset + treeDrawWidth) % treeDrawWidth;
+        // (positive modulo: treeOffset keeps decreasing, so plain % eventually went negative and trees vanished)
+        treeXBase = mod(treeXBase + treeOffset, treeDrawWidth);
 
         // Translate the wrapped position back relative to canvas origin
         const treeXDraw = treeXBase - (treeDrawWidth - canvasWidth) / 2;
@@ -301,7 +333,7 @@ function drawCampfireObject(light) {
          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
          ctx.font = '12px sans-serif';
          ctx.textAlign = 'center';
-         ctx.fillText('Flick me!', x, y + 15); // Position below logs
+         ctx.fillText('Flick up!', x, y + 15); // Position below logs
     }
     // Actual flames/embers are drawn by the light influence function
 }
@@ -322,16 +354,40 @@ function drawMoonObject(moonData) {
 
 // --- Light MASK Drawing Functions (Glows, lighting effects) ---
 
+// Parse "rgb()/rgba()" (including decimal values) and "hsl()/hsla()" into {r, g, b, a}.
+// The old regex only accepted integer rgba, so the fire stick (decimal green) and
+// the strip-light bells (hsla) silently turned into black, i.e. no glow at all.
+function parseColor(color) {
+    let m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+    if (m) {
+        return { r: Math.round(+m[1]), g: Math.round(+m[2]), b: Math.round(+m[3]), a: m[4] !== undefined ? +m[4] : 1 };
+    }
+    m = color.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*(?:,\s*([\d.]+)\s*)?\)/);
+    if (m) {
+        const h = +m[1] / 360, s = +m[2] / 100, l = +m[3] / 100;
+        const hue2rgb = (p, q, t) => {
+            t = mod(t, 1);
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        return {
+            r: Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+            g: Math.round(hue2rgb(p, q, h) * 255),
+            b: Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+            a: m[4] !== undefined ? +m[4] : 1,
+        };
+    }
+    return { r: 0, g: 0, b: 0, a: 1 };
+}
+
 function drawRadialGlow(maskCtx, x, y, radius, color, intensity) {
     maskCtx.save();
     const gradient = maskCtx.createRadialGradient(x, y, radius * 0.05, x, y, radius); // Start gradient slightly out for smoother center
-    // Extract base alpha from color string (e.g., "rgba(r,g,b,a)")
-    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-    let r = 0, g = 0, b = 0, baseAlpha = 1.0;
-    if (match) {
-        r = parseInt(match[1]); g = parseInt(match[2]); b = parseInt(match[3]);
-        if (match[4] !== undefined) baseAlpha = parseFloat(match[4]);
-    }
+    const { r, g, b, a: baseAlpha } = parseColor(color);
     const effectiveAlpha = Math.min(1, Math.max(0, baseAlpha * intensity)); // Clamp alpha between 0 and 1
 
     const centerColor = `rgba(${r},${g},${b},${effectiveAlpha})`;
@@ -357,12 +413,7 @@ function drawConeLight(maskCtx, x, y, angleStart, angleEnd, radius, color, inten
     // Create radial gradient centered at the cone's origin (x, y)
     const gradient = maskCtx.createRadialGradient(x, y, radius * 0.02, x, y, radius);
 
-    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-    let r = 0, g = 0, b = 0, baseAlpha = 1.0;
-    if (match) {
-        r = parseInt(match[1]); g = parseInt(match[2]); b = parseInt(match[3]);
-        if (match[4] !== undefined) baseAlpha = parseFloat(match[4]);
-    }
+    const { r, g, b, a: baseAlpha } = parseColor(color);
     const effectiveAlpha = Math.min(1, Math.max(0, baseAlpha * intensity));
 
     const centerColor = `rgba(${r},${g},${b},${effectiveAlpha})`;
@@ -412,28 +463,27 @@ function addLightInfluence(light) {
             if (points.length < 2) return;
 
             const bellSpacing = 30; // Pixels between bell centers
-            let currentDist = 0; // Distance traveled along path to place next bell
+            const segLen = i => Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+            let currentDist = 0; // Distance along the whole path where the next bell goes
             let pathDist = 0; // Cumulative distance up to the start of the current segment
             let segmentIndex = 0; // Index of the path segment we are currently on
-            let remainingSegmentDist = Math.sqrt(Math.pow(points[1].x - points[0].x, 2) + Math.pow(points[1].y - points[0].y, 2));
+            let remainingSegmentDist = segLen(0);
             let totalBells = 0;
 
-             // Loop while there are path segments left to process
              while (segmentIndex < points.length - 1) {
-                 // Have we placed a bell far enough along the total path?
-                 if (currentDist >= pathDist + remainingSegmentDist) {
-                     // Move to the next segment
+                 // Skip forward over as many segments as needed. (The old code only advanced
+                 // one segment per bell, so with short segments the bells were extrapolated
+                 // off the end of the segment and drifted away from the wire.)
+                 while (segmentIndex < points.length - 1 && currentDist > pathDist + remainingSegmentDist) {
                      pathDist += remainingSegmentDist;
                      segmentIndex++;
-                     if (segmentIndex >= points.length - 1) break; // No more segments
-                     // Calculate length of the new segment
-                     remainingSegmentDist = Math.sqrt(Math.pow(points[segmentIndex + 1].x - points[segmentIndex].x, 2) + Math.pow(points[segmentIndex + 1].y - points[segmentIndex].y, 2));
-                      if (remainingSegmentDist < 1) { continue; } // Skip zero-length segments
+                     if (segmentIndex < points.length - 1) remainingSegmentDist = segLen(segmentIndex);
                  }
+                 if (segmentIndex >= points.length - 1) break; // Reached the end of the wire
 
-                  // Calculate bell position on the current segment
-                 const distAlongSegment = currentDist - pathDist; // How far into the *current* segment the bell is
-                 const fraction = remainingSegmentDist > 1 ? distAlongSegment / remainingSegmentDist : 0; // Proportion along segment
+                 // Calculate bell position on the current segment
+                 const distAlongSegment = currentDist - pathDist;
+                 const fraction = remainingSegmentDist > 0 ? distAlongSegment / remainingSegmentDist : 0;
 
                  const bellX = points[segmentIndex].x + (points[segmentIndex + 1].x - points[segmentIndex].x) * fraction;
                  const bellY = points[segmentIndex].y + (points[segmentIndex + 1].y - points[segmentIndex].y) * fraction;
@@ -473,10 +523,11 @@ function addLightInfluence(light) {
 
         case 'torch':
             color = 'rgba(255, 255, 230, 0.55)'; // Faint yellowish white
-            radius = 80; // More focused beam radius
-            // Originates from head (y-32), points down (around PI/2).
-             // Narrow cone angles: 0.4 * PI (72 deg) to 0.6 * PI (108 deg) - Centered on down
-             drawConeLight(lightMaskCtx, x, y - 32, Math.PI * 0.40 - 15, Math.PI * 0.60 - 15, radius, color, intensity * 1.1); // Slight intensity boost
+            radius = 160; // Long, focused beam
+            // The torch stands upright with its head at the top (y-35), so it shines straight up.
+            // (Angles previously had "- 15" radians subtracted, which sent the beam off at a random diagonal.)
+            // Canvas angles: 1.5 * PI is straight up; 1.42..1.58 PI is a narrow ~30deg cone.
+             drawConeLight(lightMaskCtx, x, y - 35, Math.PI * 1.42, Math.PI * 1.58, radius, color, intensity * 1.1);
             break;
 
         case 'fireStick':
@@ -490,8 +541,10 @@ function addLightInfluence(light) {
 
         case 'campfire':
              if (state !== 'lit') return; // Only add light if lit
-             // Base intensity boosted by flick interaction + random flicker
-             intensity = 0.9 + (light.flickIntensity || 0) * 0.015 + Math.random() * 0.15;
+             // Base intensity boosted by flick interaction + random flicker.
+             // The flick burst now dies down over a few seconds (it used to stay boosted forever).
+             light.flickIntensity = Math.max(0, (light.flickIntensity || 0) - 0.05 * dt);
+             intensity = 0.9 + light.flickIntensity * 0.015 + Math.random() * 0.15;
              intensity = Math.min(intensity, 1.5); // Cap max intensity
              radius = 90 + intensity * 20; // Overall glow radius linked to intensity
 
@@ -518,8 +571,10 @@ function addLightInfluence(light) {
                          flameX, flameY - flameHeight * 0.5, flameRadius * 0.1, // Inner center
                          flameX, flameY - flameHeight * 0.5, flameRadius * 1.5 // Outer edge
                      );
-                     //flameGrad.addColorStop(0, flameColor.replace(/[\d\.]+\)$/g, `${Math.min(1, (parseFloat(flameColor.match(/[\d\.]+$/)[0]) + 0.2))})`)); // Brighter center
-                     flameGrad.addColorStop(1, flameColor.replace(/[\d\.]+\)$/g, '0)')); // Fade out
+                     // Bright centre fading out. (The centre stop was commented out before,
+                     // leaving a fully transparent gradient, so the flames never showed.)
+                     flameGrad.addColorStop(0, flameColor);
+                     flameGrad.addColorStop(1, flameColor.replace(/[\d\.]+\)$/g, '0)'));
                      lightMaskCtx.fillStyle = flameGrad;
                      lightMaskCtx.beginPath();
                       // Approximate elliptical glow shape for flames
@@ -529,7 +584,8 @@ function addLightInfluence(light) {
                lightMaskCtx.restore(); // Restore composite operation
 
                // --- Embers Rising ---
-              if (frameCount % 4 === 0 && Math.random() < 0.6 * intensity) { // More embers when brighter
+              // ~One spawn chance every 4 frames at 60fps, independent of refresh rate. More embers when brighter.
+              if (Math.random() < 0.15 * intensity * dt) {
                  light.embers = light.embers || [];
                  light.embers.push({
                      ex: x + (Math.random() - 0.5) * 20, // Originate from wider area
@@ -546,10 +602,10 @@ function addLightInfluence(light) {
                  lightMaskCtx.globalCompositeOperation = 'lighter'; // Embers add light
                  for (let i = light.embers.length - 1; i >= 0; i--) {
                      const ember = light.embers[i];
-                     ember.ex += ember.vx;
-                     ember.ey += ember.vy;
-                     ember.vy *= 0.985; // Slow vertical rise slightly
-                     ember.alpha -= 0.018; // Faster fade
+                     ember.ex += ember.vx * dt;
+                     ember.ey += ember.vy * dt;
+                     ember.vy *= Math.pow(0.985, dt); // Slow vertical rise slightly
+                     ember.alpha -= 0.018 * dt;
                      if (ember.alpha <= 0) {
                          light.embers.splice(i, 1); // Remove dead embers
                      } else {
@@ -573,12 +629,25 @@ function addLightInfluence(light) {
 }
 
 // --- Animation Loop ---
-function gameLoop() {
-    frameCount++;
-    // Update slow background offsets
-    starOffset = (starOffset - STAR_SPEED); // Keep subtracting, wrapping happens in draw function
-    treeOffset = (treeOffset - TREE_SPEED);
+function gameLoop(now) {
+    // Time step in 60fps frames, so 120Hz screens don't run the animation at double speed.
+    // Clamped so returning to a background tab doesn't cause a huge jump.
+    if (typeof now !== 'number') now = performance.now();
+    dt = lastFrameTime === null ? 1 : Math.min(3, Math.max(0, (now - lastFrameTime) / (1000 / 60)));
+    lastFrameTime = now;
 
+    frameCount += dt;
+    // Update slow background offsets
+    starOffset -= STAR_SPEED * dt; // Wrapping happens in the draw functions
+    treeOffset -= TREE_SPEED * dt;
+
+    renderFrame();
+
+    // Request next frame
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function renderFrame() {
     // 1. Clear Main Canvas (potentially needed for alpha blending effects)
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -619,7 +688,7 @@ function gameLoop() {
     // 5. Blend the completed Light Mask onto Main Canvas
     ctx.save();
     ctx.globalCompositeOperation = 'lighter'; // Additive blending
-    ctx.drawImage(lightMaskCanvas, 0, 0);
+    ctx.drawImage(lightMaskCanvas, 0, 0, canvasWidth, canvasHeight);
     ctx.restore(); // Back to default 'source-over'
 
      // 6. Draw Strip Light Drawing Prompt (if in that mode)
@@ -656,13 +725,10 @@ function gameLoop() {
     // === NEW: Remove Ghost Element if drag was cancelled unexpectedly ===
     // Defensive cleanup in case touchend didn't fire correctly
     if (!isTouchDraggingDrawerItem && touchDragGhostElement) {
-         console.log("Ghost cleanup in game loop (unexpected)");
-         document.body.removeChild(touchDragGhostElement);
+         log("Ghost cleanup in game loop (unexpected)");
+         touchDragGhostElement.remove();
          touchDragGhostElement = null;
     }
-	
-    // Request next frame
-    animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 // --- Event Handling ---
@@ -681,15 +747,21 @@ function getPointerPos(event) {
         clientX = event.clientX; clientY = event.clientY;
     }
 
-     // Calculate scaling factor if CSS size differs from render size
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-     // Apply scaling and offset
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
+    // Convert to scene coordinates (CSS pixels of the drawing area, excluding the border).
+    // Scene coordinates are independent of devicePixelRatio, see setupCanvas().
+    const x = (clientX - rect.left - canvas.clientLeft) * (canvasWidth / canvas.clientWidth);
+    const y = (clientY - rect.top - canvas.clientTop) * (canvasHeight / canvas.clientHeight);
 
     return { x, y };
+}
+
+// --- Moon placement: one shared rule for dropping and dragging (they used different limits before) ---
+function placeMoon(x, y) {
+    const r = 30;
+    x = Math.min(Math.max(x, r), canvasWidth - r);
+    y = Math.min(Math.max(y, r), canvasHeight * 0.7);
+    if (!moon) moon = { type: 'moon', x, y, state: 'on' };
+    else { moon.x = x; moon.y = y; }
 }
 
 // --- Drawer Item Interactions (HTML5 Drag & NEW Touch Drag) ---
@@ -704,7 +776,7 @@ drawerItems.forEach(item => {
         isDraggingItem = true; // Flag for standard drag
         draggedItemType = (type === 'stripLight') ? 'stripLightPlaceholder' : type;
 
-        console.log(`Drag Start (Mouse): ${draggedItemType}`);
+        log(`Drag Start (Mouse): ${draggedItemType}`);
         canvas.style.cursor = 'grabbing';
 
         if(e.dataTransfer) {
@@ -715,19 +787,15 @@ drawerItems.forEach(item => {
 
     item.addEventListener('dragend', (e) => {
         // Standard drag cleanup...
-        if (isDraggingItem) { // Only reset if mouse drag was happening
-            console.log("Drag End (Mouse) - Resetting");
+        if (isDraggingItem) { // Only reset if the drag wasn't already handled by a drop
+            log("Drag End (Mouse) - Resetting");
              isDraggingItem = false;
              draggedItemType = null;
-             // Cursor is reset by drop or pointer events on canvas
-              // Reset just in case if no drop occurs:
-              if (!isDrawingStripMode && !isInteractingCampfire && !isDraggingItem && !isTouchDraggingDrawerItem){
-                  canvas.style.cursor = 'default';
-              }
-             // Ensure strip placeholder modes reset if drag cancelled
-             if (draggedItemType === 'stripLightPlaceholder'){
-                  isDrawingStripMode = false;
-                  stripPlaceholderPos = null;
+             // Drag was cancelled (no drop), so make sure no half-started strip mode lingers
+             isDrawingStripMode = false;
+             stripPlaceholderPos = null;
+             if (!isInteractingCampfire && !isTouchDraggingDrawerItem) {
+                 canvas.style.cursor = 'default';
              }
         }
     });
@@ -752,7 +820,7 @@ drawerItems.forEach(item => {
           touchDragStartX = touch.clientX;
           touchDragStartY = touch.clientY;
 
-          console.log(`Touch Start Drag: ${touchDraggedItemType}`);
+          log(`Touch Start Drag: ${touchDraggedItemType}`);
 
           // Create the visual ghost element
           touchDragGhostElement = document.createElement('div');
@@ -800,7 +868,7 @@ function handleDocumentTouchEnd(e) {
 
      // No preventDefault here needed usually, but won't hurt
 
-     console.log(`Touch End Drag: ${touchDraggedItemType}`);
+     log(`Touch End Drag: ${touchDraggedItemType}`);
      const touch = e.changedTouches[0]; // Use changedTouches for end event
 
      // 1. Check if dropped over the canvas
@@ -817,7 +885,7 @@ function handleDocumentTouchEnd(e) {
 
 
      if (droppedOnCanvas) {
-         console.log("--> Dropped on Canvas (Touch)");
+         log("--> Dropped on Canvas (Touch)");
          // Calculate position relative to canvas
          const pos = getPointerPos(e); // Use existing function, works for touch end event
 
@@ -827,13 +895,12 @@ function handleDocumentTouchEnd(e) {
              isDrawingStripMode = true; // Activate mode
              stripPlaceholderPos = pos; // Store pos
              canvas.style.cursor = 'crosshair'; // Show draw cursor (less relevant on touch but consistent)
-             console.log("    Strip Light Placeholder set up.");
+             log("    Strip Light Placeholder set up.");
          }
          // Handle MOON Drop
          else if (touchDraggedItemType === 'moon') {
-             const newItem = { type: 'moon', x: pos.x, y: Math.min(pos.y, canvasHeight * 0.7), state: 'on' };
-             if (!moon) moon = newItem; else { moon.x = pos.x; moon.y = Math.min(pos.y, canvasHeight * 0.7); }
-              console.log("    Moon position updated.");
+             placeMoon(pos.x, pos.y);
+              log("    Moon position updated.");
          }
          // Handle REGULAR Light Drops
          else {
@@ -843,11 +910,11 @@ function handleDocumentTouchEnd(e) {
                  flickIntensity: 0, points: [], embers: []
              };
              placedLights.push(newItem);
-              console.log(`    Light '${touchDraggedItemType}' added.`);
+              log(`    Light '${touchDraggedItemType}' added.`);
          }
          redrawScene(); // Update canvas
      } else {
-          console.log("--> Dropped outside Canvas (Touch)");
+          log("--> Dropped outside Canvas (Touch)");
            // Drag cancelled if dropped elsewhere
            if (touchDraggedItemType === 'stripLightPlaceholder'){
                  isDrawingStripMode = false;
@@ -857,7 +924,7 @@ function handleDocumentTouchEnd(e) {
 
      // 2. Cleanup
      if (touchDragGhostElement) {
-         document.body.removeChild(touchDragGhostElement);
+         touchDragGhostElement.remove();
      }
      touchDragGhostElement = null;
      isTouchDraggingDrawerItem = false;
@@ -887,13 +954,13 @@ canvas.addEventListener('drop', (e) => {
 
     // Make sure this drop is from a *mouse* drag
     if (!isDraggingItem) { // If not a mouse drag, ignore. Touch handled by touchend.
-         console.log("Drop event ignored - not a mouse drag.");
+         log("Drop event ignored - not a mouse drag.");
          return;
      }
 
     const droppedType = e.dataTransfer ? e.dataTransfer.getData('text/plain') : draggedItemType; // Fallback needed?
 
-    console.log(`Drop Event (Mouse). Type: ${droppedType}, Pos: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}`);
+    log(`Drop Event (Mouse). Type: ${droppedType}, Pos: ${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}`);
 
     if (isDraggingItem && droppedType) { // Double check flag just in case
          // === Handle STRIP LIGHT Placeholder Drop ===
@@ -901,13 +968,12 @@ canvas.addEventListener('drop', (e) => {
              isDrawingStripMode = true; // Activate strip drawing mode
              stripPlaceholderPos = pos;
              canvas.style.cursor = 'crosshair';
-             console.log("--> Strip Light Placeholder Dropped (Mouse).");
+             log("--> Strip Light Placeholder Dropped (Mouse).");
          }
          // === Handle MOON Drop ===
          else if (droppedType === 'moon') {
-             const newItem = { type: 'moon', x: pos.x, y: Math.min(pos.y, canvasHeight * 0.7), state: 'on' };
-             if (!moon) moon = newItem; else { moon.x = pos.x; moon.y = Math.min(pos.y, canvasHeight * 0.7); }
-             console.log("--> Moon Dropped/Moved (Mouse).");
+             placeMoon(pos.x, pos.y);
+             log("--> Moon Dropped/Moved (Mouse).");
          }
          // === Handle Other REGULAR Light Drops ===
          else {
@@ -917,7 +983,7 @@ canvas.addEventListener('drop', (e) => {
                  flickIntensity: 0, points: [], embers: []
              };
              placedLights.push(newItem);
-             console.log(`--> Regular light '${droppedType}' added (Mouse).`);
+             log(`--> Regular light '${droppedType}' added (Mouse).`);
          }
          redrawScene(); // Update canvas immediately after drop
     } else {
@@ -946,7 +1012,7 @@ function handlePointerDown(e) {
     // e.preventDefault(); // <-- Moved preventDefault inside specific interaction blocks
 
     const pos = getPointerPos(e);
-    console.log(`Pointer Down at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), Strip Mode: ${isDrawingStripMode}, Active Draw: ${isActivelyDrawingStrip}`);
+    log(`Pointer Down at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), Strip Mode: ${isDrawingStripMode}, Active Draw: ${isActivelyDrawingStrip}`);
 
     // --- 1. Try to START Drawing Strip ---
     if (isDrawingStripMode && !isActivelyDrawingStrip) {
@@ -954,7 +1020,7 @@ function handlePointerDown(e) {
         isActivelyDrawingStrip = true;
         currentStripPoints = [pos]; // Initialize points array
         stripPlaceholderPos = null; // Remove the prompt text trigger
-        console.log("--> Started ACTUALLY drawing strip line.");
+        log("--> Started ACTUALLY drawing strip line.");
         canvas.style.cursor = 'crosshair'; // Maintain crosshair during draw
         return; // Prioritize this action
     }
@@ -973,7 +1039,7 @@ function handlePointerDown(e) {
                      interactingCampfire = light;
                      interactionStartPos = pos;
                      interactionStartTime = Date.now();
-                     console.log("--> Started interacting with campfire.");
+                     log("--> Started interacting with campfire.");
                      canvas.style.cursor = 'pointer'; // Indicate interactive object
                      return; // Found interactive object
                  }
@@ -989,7 +1055,7 @@ function handlePointerDown(e) {
                    draggedItemType = 'moon'; // Specifically identify moon drag
                    dragOffsetX = pos.x - moon.x;
                    dragOffsetY = pos.y - moon.y;
-                   console.log("--> Started dragging moon.");
+                   log("--> Started dragging moon.");
                    canvas.style.cursor = 'grabbing'; // Indicate dragging action
                    return; // Found interactive object
               }
@@ -1024,9 +1090,7 @@ function handlePointerMove(e) {
     // --- 2. Continue Dragging Moon ---
     if (isDraggingItem && draggedItemType === 'moon') {
         e.preventDefault(); // Prevent scroll etc. during moon drag
-        moon.x = pos.x - dragOffsetX;
-         // Constrain moon Y position to upper part of canvas
-        moon.y = Math.min(pos.y - dragOffsetY, canvasHeight * 0.75);
+        placeMoon(pos.x - dragOffsetX, pos.y - dragOffsetY);
         // Redraw handled by animation loop
         return;
     }
@@ -1043,7 +1107,7 @@ function handlePointerUp(e) {
     const pos = getPointerPos(e); // Get position at end of interaction
 
     let wasInteracting = isActivelyDrawingStrip || isInteractingCampfire || (isDraggingItem && draggedItemType === 'moon');
-     console.log(`Pointer Up at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), Was Interacting: ${wasInteracting}`);
+     log(`Pointer Up at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}), Was Interacting: ${wasInteracting}`);
 
 
      if (wasInteracting) {
@@ -1055,7 +1119,7 @@ function handlePointerUp(e) {
 
     // --- 1. Finalize Strip Light Drawing ---
     if (isActivelyDrawingStrip) {
-        console.log("--> Finalizing strip light draw.");
+        log("--> Finalizing strip light draw.");
         if (currentStripPoints.length > 1) {
             const newStrip = {
                 type: 'stripLight',
@@ -1063,9 +1127,9 @@ function handlePointerUp(e) {
                 state: 'on', // Bells handle their own visuals, state is just 'on'
             };
             placedLights.push(newStrip);
-            console.log(`    Strip added with ${newStrip.points.length} points.`);
+            log(`    Strip added with ${newStrip.points.length} points.`);
         } else {
-            console.log("    Strip too short, cancelled.");
+            log("    Strip too short, cancelled.");
         }
         // Reset ALL strip-related states
         isActivelyDrawingStrip = false;
@@ -1079,23 +1143,23 @@ function handlePointerUp(e) {
 
     // --- 2. Finalize Campfire Interaction ---
     if (isInteractingCampfire && interactingCampfire && interactionStartPos) {
-        console.log("--> Finalizing campfire interaction.");
+        log("--> Finalizing campfire interaction.");
         const interactionEndTime = Date.now();
         const deltaX = pos.x - interactionStartPos.x;
         const deltaY = interactionStartPos.y - pos.y; // Upward is positive Y difference
         const deltaTime = interactionEndTime - interactionStartTime;
         const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        console.log(`    Flick check: dY=${deltaY.toFixed(1)}, dist=${dist.toFixed(1)}, dT=${deltaTime}ms`);
+        log(`    Flick check: dY=${deltaY.toFixed(1)}, dist=${dist.toFixed(1)}, dT=${deltaTime}ms`);
 
         // Check for a reasonably quick, upward flick
         if (deltaY > 25 && dist > 30 && deltaTime < 450) { // Adjust thresholds as needed
             interactingCampfire.state = 'lit';
             interactingCampfire.flickIntensity = 10; // Give initial burst
-            console.log("    Campfire flick SUCCESS -> Lit!");
+            log("    Campfire flick SUCCESS -> Lit!");
             redrawScene(); // Update visually
         } else {
-            console.log("    Campfire flick FAILED (thresholds not met).");
+            log("    Campfire flick FAILED (thresholds not met).");
         }
         // Reset campfire interaction states
         isInteractingCampfire = false;
@@ -1107,7 +1171,7 @@ function handlePointerUp(e) {
 
     // --- 3. Finalize Moon Drag ---
     if (isDraggingItem && draggedItemType === 'moon') {
-        console.log("--> Finalizing moon drag.");
+        log("--> Finalizing moon drag.");
         // Reset moon dragging states
         isDraggingItem = false;
         draggedItemType = null;
@@ -1119,7 +1183,7 @@ function handlePointerUp(e) {
 
      // --- Cleanup: If user just clicks while in strip mode without drawing ---
       if (!wasInteracting && isDrawingStripMode) {
-          console.log("Pointer Up clicked while in strip mode but not drawing. Cancelling mode.");
+          log("Pointer Up clicked while in strip mode but not drawing. Cancelling mode.");
           isDrawingStripMode = false;
           stripPlaceholderPos = null;
           canvas.style.cursor = 'default';
@@ -1133,15 +1197,15 @@ function handlePointerUp(e) {
 
 // Handle Pointer Leaving Canvas Area
 canvas.addEventListener('pointerleave', (e) => {
-    console.log("Pointer Left Canvas Area");
+    log("Pointer Left Canvas Area");
 
      // If an interaction was actively happening, treat it like pointer up to finalize/cancel
      if (isActivelyDrawingStrip || isInteractingCampfire || (isDraggingItem && draggedItemType === 'moon')) {
-        console.log("--- Finalizing active interaction due to pointerleave");
+        log("--- Finalizing active interaction due to pointerleave");
         handlePointerUp(e); // Simulate pointer up to properly clean up states
      } else if (isDrawingStripMode) {
          // If just the placeholder prompt was showing, cancel the mode
-         console.log("--- Cancelling strip drawing mode due to pointerleave");
+         log("--- Cancelling strip drawing mode due to pointerleave");
          isDrawingStripMode = false;
          stripPlaceholderPos = null;
          canvas.style.cursor = 'default';
@@ -1149,7 +1213,7 @@ canvas.addEventListener('pointerleave', (e) => {
      }
       // Also reset generic drag state if item dragged off canvas
       if (isDraggingItem) {
-         console.log("--- Resetting generic dragging state due to pointerleave")
+         log("--- Resetting generic dragging state due to pointerleave")
          isDraggingItem = false;
          draggedItemType = null;
          canvas.style.cursor = 'default';
@@ -1157,9 +1221,17 @@ canvas.addEventListener('pointerleave', (e) => {
 });
 
 // Attach unified pointer event listeners
-canvas.addEventListener('pointerdown', handlePointerDown);
+canvas.addEventListener('pointerdown', (e) => {
+    handlePointerDown(e);
+    // Keep receiving events for this pointer while drawing / flicking / dragging the moon,
+    // even if it briefly leaves the canvas (previously that ended the interaction mid-gesture).
+    if (isActivelyDrawingStrip || isInteractingCampfire || (isDraggingItem && draggedItemType === 'moon')) {
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not supported - fine */ }
+    }
+});
 canvas.addEventListener('pointermove', handlePointerMove);
 canvas.addEventListener('pointerup', handlePointerUp);
+canvas.addEventListener('pointercancel', handlePointerUp); // e.g. the browser takes over the touch
 
 
 // --- Control Button Listeners ---
@@ -1176,7 +1248,7 @@ btnClear.addEventListener('click', () => {
     stripPlaceholderPos = null;
     currentStripPoints = [];
     canvas.style.cursor = 'default';
-    console.log("Scene Cleared.");
+    log("Scene Cleared.");
     redrawScene();
 });
 
@@ -1188,11 +1260,12 @@ function toggleFullScreen() {
     const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
 
     if (!isFs && requestFS) {
-        console.log("Requesting Fullscreen");
-         requestFS.call(docEl).catch(err => console.error(`Error requesting fullscreen: ${err.message}`, err));
+        log("Requesting Fullscreen");
+         // Older Safari's webkitRequestFullscreen returns undefined rather than a Promise
+         Promise.resolve(requestFS.call(docEl)).catch(err => console.error(`Error requesting fullscreen: ${err.message}`, err));
     } else if (isFs && exitFS) {
-        console.log("Exiting Fullscreen");
-        exitFS.call(document).catch(err => console.error(`Error exiting fullscreen: ${err.message}`, err));
+        log("Exiting Fullscreen");
+        Promise.resolve(exitFS.call(document)).catch(err => console.error(`Error exiting fullscreen: ${err.message}`, err));
     } else {
          console.warn("Fullscreen API not fully supported or action failed.");
      }
@@ -1200,11 +1273,18 @@ function toggleFullScreen() {
 }
 
 btnFullscreen.addEventListener('click', toggleFullScreen);
+// iPhone Safari has no Fullscreen API for pages, so hide the button rather than show one that does nothing
+{
+    const de = document.documentElement;
+    if (!(de.requestFullscreen || de.webkitRequestFullscreen || de.mozRequestFullScreen || de.msRequestFullscreen)) {
+        btnFullscreen.style.display = 'none';
+    }
+}
 
 // Function to handle resize when fullscreen status changes
 function onFullscreenChange() {
      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-     console.log(`Fullscreen change detected. Is Fullscreen: ${isFs}`);
+     log(`Fullscreen change detected. Is Fullscreen: ${isFs}`);
      // Delay resize slightly to allow browser layout adjustments
      setTimeout(setupCanvas, 100);
 }
@@ -1218,31 +1298,10 @@ document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
 // --- Redraw Scene Function (Force immediate update) ---
 function redrawScene() {
-    // Ensures canvas is redrawn instantly after state changes (like drops, button clicks)
-    // instead of waiting for the next animation frame.
-    console.log("Redraw Scene Called");
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId); // Stop current loop
-        animationFrameId = null;
-    }
-     // Manually execute one render cycle immediately:
-    frameCount++; // Keep frame consistent
-
-    // Clear, Draw Background, Draw Objects, Prep Mask, Draw Influence, Blend Mask, Draw UI
-     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-     drawBackground();
-     drawForestSilhouette();
-     placedLights.forEach(light => { /* ... draw objects / wire ... */ });
-     drawMoonObject(moon);
-     lightMaskCtx.clearRect(0, 0, canvasWidth, canvasHeight); lightMaskCtx.fillStyle = 'black'; lightMaskCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-     if (moon) addLightInfluence(moon);
-     placedLights.forEach(light => addLightInfluence(light));
-     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(lightMaskCanvas, 0, 0); ctx.restore();
-     if (isDrawingStripMode && stripPlaceholderPos) { /* ... draw prompt ... */ }
-     if (isActivelyDrawingStrip && currentStripPoints.length > 0) { /* ... draw dashed line ... */ }
-
-    // Restart the animation loop
-    gameLoop();
+    // Draw the current state immediately (e.g. right after a resize cleared the canvas).
+    // The animation loop keeps running on its own; this used to cancel and restart it,
+    // which (together with the initial start) left two loops running at once.
+    if (canvasWidth && canvasHeight) renderFrame();
 }
 
 // --- Window Resize Handler (Debounced) ---
@@ -1250,13 +1309,13 @@ let resizeTimeout;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        console.log("Window resized event - running setupCanvas");
+        log("Window resized event - running setupCanvas");
         setupCanvas();
         // No need to call redrawScene here, setupCanvas includes it
     }, 150); // Delay processing resize events
 });
 
 // --- Initial Setup & Start ---
-console.log("Initializing Forest of Lights...");
+log("Initializing Forest of Lights...");
 setupCanvas(); // Set initial canvas size and draw
-gameLoop();    // Start the animation loop
+animationFrameId = requestAnimationFrame(gameLoop); // Start the (single) animation loop
