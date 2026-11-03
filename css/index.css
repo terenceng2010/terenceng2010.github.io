@@ -7,6 +7,13 @@
     }
     body.night{
          background-color: black;
+         color: #ccc;
+    }
+    body.night a{
+         color: #8ab4ff;
+    }
+    body.night a:visited{
+         color: #c9a4ff;
     }
     section{
         padding:10px;
@@ -28,8 +35,7 @@
         flex-wrap: wrap;
     }
     .pet-projects > .project{
-        padding:10px;
-        margin:10px;       
+        margin:0 40px 0 0;
     }
     .timeline ul li label{
         font-weight: bold;
