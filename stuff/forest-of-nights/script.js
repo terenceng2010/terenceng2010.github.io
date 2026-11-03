@@ -730,7 +730,7 @@ function renderFrame() {
          ctx.font = 'bold 14px sans-serif';
          ctx.textAlign = 'center';
           // Draw prompt slightly above placeholder position
-         ctx.fillText('Click and drag on canvas to draw strip path', stripPlaceholderPos.x, stripPlaceholderPos.y - 15);
+         ctx.fillText('Drag anywhere on the scene to draw the string of lights', Math.min(Math.max(stripPlaceholderPos.x, 190), canvasWidth - 190), stripPlaceholderPos.y - 15);
          // Simple crosshair marker at the position
          ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
          ctx.lineWidth = 1;
@@ -797,8 +797,33 @@ function placeMoon(x, y) {
     else { moon.x = x; moon.y = y; }
 }
 
+// --- Strip mode helpers ---
+function startStripMode(pos) {
+    isDrawingStripMode = true;
+    isActivelyDrawingStrip = false;
+    currentStripPoints = [];
+    // Show the prompt where the item was dropped, or in the middle of the sky if it was just clicked
+    stripPlaceholderPos = pos || { x: canvasWidth / 2, y: canvasHeight * 0.35 };
+    canvas.style.cursor = 'crosshair';
+    log("Strip mode on");
+}
+
+function cancelStripMode() {
+    isDrawingStripMode = false;
+    isActivelyDrawingStrip = false;
+    currentStripPoints = [];
+    stripPlaceholderPos = null;
+    canvas.style.cursor = 'default';
+    log("Strip mode cancelled");
+}
+
 // --- Drawer Item Interactions (HTML5 Drag & NEW Touch Drag) ---
 drawerItems.forEach(item => {
+
+    // --- Click (mouse) on Draw Strip: start strip mode without having to drag it ---
+    if (item.getAttribute('data-type') === 'stripLight') {
+        item.addEventListener('click', () => startStripMode());
+    }
 
     // --- HTML5 Drag & Drop (for Mouse) ---
     item.addEventListener('dragstart', (e) => {
@@ -824,10 +849,9 @@ drawerItems.forEach(item => {
             log("Drag End (Mouse) - Resetting");
              isDraggingItem = false;
              draggedItemType = null;
-             // Drag was cancelled (no drop), so make sure no half-started strip mode lingers
-             isDrawingStripMode = false;
-             stripPlaceholderPos = null;
-             if (!isInteractingCampfire && !isTouchDraggingDrawerItem) {
+             // Note: don't touch strip mode here. Some browsers fire dragend in a different
+             // order, and resetting it here could switch off strip mode right after the drop.
+             if (!isDrawingStripMode && !isInteractingCampfire && !isTouchDraggingDrawerItem) {
                  canvas.style.cursor = 'default';
              }
         }
@@ -925,9 +949,7 @@ function handleDocumentTouchEnd(e) {
           // Reuse the drop logic (same as mouse drop)
          // Handle STRIP LIGHT Placeholder Drop
          if (touchDraggedItemType === 'stripLightPlaceholder') {
-             isDrawingStripMode = true; // Activate mode
-             stripPlaceholderPos = pos; // Store pos
-             canvas.style.cursor = 'crosshair'; // Show draw cursor (less relevant on touch but consistent)
+             startStripMode(pos);
              log("    Strip Light Placeholder set up.");
          }
          // Handle MOON Drop
@@ -948,10 +970,11 @@ function handleDocumentTouchEnd(e) {
          redrawScene(); // Update canvas
      } else {
           log("--> Dropped outside Canvas (Touch)");
-           // Drag cancelled if dropped elsewhere
-           if (touchDraggedItemType === 'stripLightPlaceholder'){
-                 isDrawingStripMode = false;
-                 stripPlaceholderPos = null;
+           // A tap on "Draw Strip" (lifted without dragging onto the canvas) starts strip mode,
+           // the same as clicking it with a mouse. touchstart's preventDefault blocks the click event.
+           if (touchDraggedItemType === 'stripLightPlaceholder') {
+               const el = touch && document.elementFromPoint(touch.clientX, touch.clientY);
+               if (el && el.closest && el.closest('[data-type="stripLight"]')) startStripMode();
            }
       }
 
@@ -998,9 +1021,7 @@ canvas.addEventListener('drop', (e) => {
     if (isDraggingItem && droppedType) { // Double check flag just in case
          // === Handle STRIP LIGHT Placeholder Drop ===
          if (droppedType === 'stripLightPlaceholder') {
-             isDrawingStripMode = true; // Activate strip drawing mode
-             stripPlaceholderPos = pos;
-             canvas.style.cursor = 'crosshair';
+             startStripMode(pos);
              log("--> Strip Light Placeholder Dropped (Mouse).");
          }
          // === Handle MOON Drop ===
@@ -1214,14 +1235,9 @@ function handlePointerUp(e) {
     }
 
 
-     // --- Cleanup: If user just clicks while in strip mode without drawing ---
-      if (!wasInteracting && isDrawingStripMode) {
-          log("Pointer Up clicked while in strip mode but not drawing. Cancelling mode.");
-          isDrawingStripMode = false;
-          stripPlaceholderPos = null;
-          canvas.style.cursor = 'default';
-           redrawScene(); // Redraw to remove prompt if it was visible
-       }
+     // A pointerup without a matching pointerdown (e.g. some browsers send one right after a
+     // drag-and-drop) used to cancel strip mode here. Strip mode now stays on until the user
+     // draws, presses Escape, or clears the scene.
       // General cursor reset if no other state requires a specific cursor
      if (!isDrawingStripMode && !isInteractingCampfire && !isDraggingItem) {
          canvas.style.cursor = 'default';
@@ -1233,24 +1249,13 @@ canvas.addEventListener('pointerleave', (e) => {
     log("Pointer Left Canvas Area");
 
      // If an interaction was actively happening, treat it like pointer up to finalize/cancel
+     // Only finish gestures that are actually in progress. (Pointer capture normally keeps
+     // these on the canvas; this is a fallback.) Pending strip mode and drawer drags are left
+     // alone: touch screens fire pointerleave on every lift, which used to cancel them.
      if (isActivelyDrawingStrip || isInteractingCampfire || (isDraggingItem && draggedItemType === 'moon')) {
         log("--- Finalizing active interaction due to pointerleave");
-        handlePointerUp(e); // Simulate pointer up to properly clean up states
-     } else if (isDrawingStripMode) {
-         // If just the placeholder prompt was showing, cancel the mode
-         log("--- Cancelling strip drawing mode due to pointerleave");
-         isDrawingStripMode = false;
-         stripPlaceholderPos = null;
-         canvas.style.cursor = 'default';
-         redrawScene(); // Redraw to remove prompt
+        handlePointerUp(e);
      }
-      // Also reset generic drag state if item dragged off canvas
-      if (isDraggingItem) {
-         log("--- Resetting generic dragging state due to pointerleave")
-         isDraggingItem = false;
-         draggedItemType = null;
-         canvas.style.cursor = 'default';
-      }
 });
 
 // Attach unified pointer event listeners
@@ -1264,7 +1269,19 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', handlePointerMove);
 canvas.addEventListener('pointerup', handlePointerUp);
-canvas.addEventListener('pointercancel', handlePointerUp); // e.g. the browser takes over the touch
+canvas.addEventListener('pointercancel', (e) => {
+    // e.g. the browser takes over the touch. Finish a gesture in progress, but never cancel pending strip mode.
+    if (isActivelyDrawingStrip || isInteractingCampfire || (isDraggingItem && draggedItemType === 'moon')) {
+        handlePointerUp(e);
+    }
+});
+
+// Escape cancels strip mode (it no longer cancels itself on stray pointer events)
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && (isDrawingStripMode || isActivelyDrawingStrip)) {
+        cancelStripMode();
+    }
+});
 
 
 // --- Control Button Listeners ---
