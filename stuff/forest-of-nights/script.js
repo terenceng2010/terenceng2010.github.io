@@ -237,19 +237,52 @@ function drawDeskLampObject(light) {
 }
 
 function drawPenguinLedObject(light) {
-     const { x, y } = light;
-    // Body (black)
-    ctx.fillStyle = 'black';
-    ctx.beginPath(); ctx.ellipse(x, y - 15, 12, 18, 0, 0, Math.PI * 2); ctx.fill();
-    // Belly (white)
+    // A little penguin night-light standing on the ground at (x, y), about 40px tall.
+    // Its belly is the LED panel, which is where the glow comes from.
+    const { x, y } = light;
+    const ellipse = (cx, cy, rx, ry, rot = 0) => { ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2); ctx.fill(); };
+
+    // Feet
+    ctx.fillStyle = '#f39c12';
+    ellipse(x - 5, y - 1.5, 5, 2.2);
+    ellipse(x + 5, y - 1.5, 5, 2.2);
+
+    // Flippers, angled slightly out from the body
+    ctx.fillStyle = '#1b1b24';
+    ellipse(x - 11, y - 14, 3.5, 9, 0.35);
+    ellipse(x + 11, y - 14, 3.5, 9, -0.35);
+
+    // Body and head
+    ctx.fillStyle = '#22222c';
+    ellipse(x, y - 14, 11, 14);
+    ellipse(x, y - 30, 9, 9);
+
+    // White face mask (two cheek patches that join under the beak)
+    ctx.fillStyle = '#f4f4f4';
+    ellipse(x - 3.3, y - 29.5, 4.2, 5);
+    ellipse(x + 3.3, y - 29.5, 4.2, 5);
+    ellipse(x, y - 25.5, 4.5, 3);
+
+    // Belly = LED panel, pale blue
+    ctx.fillStyle = '#d9f1ff';
+    ellipse(x, y - 12.5, 7.5, 11);
+
+    // Eyes with a tiny highlight
+    ctx.fillStyle = '#111';
+    ellipse(x - 3.2, y - 30.5, 1.4, 1.7);
+    ellipse(x + 3.2, y - 30.5, 1.4, 1.7);
     ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.ellipse(x, y - 10, 8, 12, 0, 0, Math.PI * 2); ctx.fill();
-    // Beak (orange)
-    ctx.fillStyle = 'orange';
-    ctx.beginPath(); ctx.moveTo(x - 2, y - 22); ctx.lineTo(x + 2, y - 22); ctx.lineTo(x, y - 18); ctx.closePath(); ctx.fill();
-    // Physical LED part (light blue circle)
-    ctx.fillStyle = 'lightblue';
-    ctx.beginPath(); ctx.arc(x, y - 8, 4, 0, Math.PI * 2); ctx.fill();
+    ellipse(x - 2.8, y - 31.1, 0.5, 0.5);
+    ellipse(x + 3.6, y - 31.1, 0.5, 0.5);
+
+    // Rosy cheeks
+    ctx.fillStyle = 'rgba(255, 140, 160, 0.6)';
+    ellipse(x - 5.6, y - 27.3, 1.4, 1);
+    ellipse(x + 5.6, y - 27.3, 1.4, 1);
+
+    // Beak
+    ctx.fillStyle = '#f39c12';
+    ctx.beginPath(); ctx.moveTo(x - 2.4, y - 28); ctx.lineTo(x + 2.4, y - 28); ctx.lineTo(x, y - 24.8); ctx.closePath(); ctx.fill();
 }
 
 function drawStripLightObject(light) {
@@ -455,7 +488,7 @@ function addLightInfluence(light) {
         case 'penguinLed':
             color = 'rgba(173, 216, 230, 0.75)'; // Slightly brighter blue maybe
             radius = 55;
-             drawRadialGlow(lightMaskCtx, x, y - 8, radius, color, intensity); // Glow originates near the LED source
+             drawRadialGlow(lightMaskCtx, x, y - 13, radius, color, intensity); // Glow comes from the LED belly
             break;
 
         case 'stripLight':
